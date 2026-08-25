@@ -14,6 +14,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useDately } from "@/context/DatelyContext";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { API_URL } from "@/config/api";
 
 export default function UploadDocumentPage() {
   const { addDocument, showToast, navigateTo, t, userProfile } = useDately();
@@ -40,7 +41,7 @@ export default function UploadDocumentPage() {
               variant="primary"
               onClick={() => {
                 const token = localStorage.getItem("dately_token");
-                window.location.href = `http://localhost:5000/api/auth/google?token=${token}`;
+                window.location.href = `${API_URL}/auth/google?token=${token}`;
               }}
               className="w-full flex items-center justify-center font-bold"
             >
@@ -95,7 +96,7 @@ export default function UploadDocumentPage() {
         const scanData = new FormData();
         scanData.append("file", file);
 
-        const res = await fetch("http://localhost:5000/api/documents/analyze", {
+        const res = await fetch(`${API_URL}/documents/analyze`, {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${token}`

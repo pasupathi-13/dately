@@ -5,7 +5,7 @@ import { translations } from '@/data/translations';
 
 const DatelyContext = createContext(undefined);
 
-const API_URL = 'http://localhost:5000/api';
+import { API_URL } from '@/config/api';
 
 const defaultUserProfile = {
   name: "Pasupathi A T",

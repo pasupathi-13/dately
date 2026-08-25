@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { Mail, Lock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useDately } from "@/context/DatelyContext";
+import { API_URL } from "@/config/api";
+
 export default function LoginPage() {
   const { navigateTo, handleLogin, showToast } = useDately();
 
@@ -85,7 +87,7 @@ export default function LoginPage() {
     variant="outline"
     fullWidth
     onClick={() => {
-      window.location.href = "http://localhost:5000/api/auth/google-login";
+      window.location.href = `${API_URL}/auth/google-login`;
     }}
     className="flex items-center justify-center space-x-2 py-2"
   ><svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114-3.478 0-6.3-2.822-6.3-6.3s2.822-6.3 6.3-6.3c1.706 0 3.24.69 4.35 1.806l3.11-3.11C19.23 2.63 15.96 1 12.24 1 5.48 1 0 6.48 0 13.24s5.48 12.24 12.24 12.24c6.82 0 12.24-5.42 12.24-12.24 0-.785-.095-1.539-.272-2.285H12.24z" /></svg><span>Continue with Google</span></Button><div className="text-center mt-6"><p className="text-xs text-dately-slate font-semibold">

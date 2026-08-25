@@ -18,6 +18,7 @@ import { useDately } from "@/context/DatelyContext";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { BACKEND_URL } from "@/config/api";
 
 export default function DocumentDetailsPage() {
   const { documents, updateDocument, deleteDocument, showToast, currentParams, navigateTo, t } = useDately();
@@ -213,13 +214,13 @@ export default function DocumentDetailsPage() {
             <div className="flex flex-col items-center justify-center p-1 min-h-[50vh]">
               {isPdf ? (
                 <iframe
-                  src={`http://localhost:5000${doc.filePath}`}
+                  src={`${BACKEND_URL}${doc.filePath}`}
                   className="w-full h-[65vh] rounded-xl border border-slate-200"
                   title={doc.name}
                 />
               ) : (
                 <img
-                  src={`http://localhost:5000${doc.filePath}`}
+                  src={`${BACKEND_URL}${doc.filePath}`}
                   alt={doc.name}
                   className="max-h-[65vh] max-w-full rounded-xl object-contain shadow-md"
                 />

@@ -3,6 +3,7 @@ import { User, Bell, Shield, Save, Trash2, AlertTriangle, RefreshCw, HardDrive, 
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useDately } from "@/context/DatelyContext";
 import Button from "@/components/ui/Button";
+import { API_URL } from "@/config/api";
 
 export default function SettingsPage() {
   const {
@@ -32,7 +33,7 @@ export default function SettingsPage() {
         showToast("Connected to Google Drive in vault mode.", "info");
         return;
       }
-      const res = await fetch("http://localhost:5000/api/auth/drive-storage", {
+      const res = await fetch(`${API_URL}/auth/drive-storage`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -373,7 +374,7 @@ export default function SettingsPage() {
                         variant="primary"
                         onClick={() => {
                           const token = localStorage.getItem("dately_token");
-                          window.location.href = `http://localhost:5000/api/auth/google?token=${token}`;
+                          window.location.href = `${API_URL}/auth/google?token=${token}`;
                         }}
                         className="shadow-sm font-semibold text-sm"
                       >
@@ -409,7 +410,7 @@ export default function SettingsPage() {
                         onClick={async () => {
                           try {
                             const token = localStorage.getItem("dately_token");
-                            const res = await fetch("http://localhost:5000/api/notifications/test-email", {
+                            const res = await fetch(`${API_URL}/notifications/test-email`, {
                               method: "POST",
                               headers: {
                                 "Authorization": `Bearer ${token}`,
@@ -437,7 +438,7 @@ export default function SettingsPage() {
                         onClick={async () => {
                           try {
                             const token = localStorage.getItem("dately_token");
-                            const res = await fetch("http://localhost:5000/api/notifications/test-whatsapp", {
+                            const res = await fetch(`${API_URL}/notifications/test-whatsapp`, {
                               method: "POST",
                               headers: {
                                 "Authorization": `Bearer ${token}`,
