@@ -1,0 +1,36 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/server/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# testing
+/coverage
+
+# production
+/dist
+/build
+/.next/
+/out/
+
+# uploads & secrets
+.env
+.env*
+server/serviceAccountKey.json
+/server/uploads/*
+!/server/uploads/.gitkeep
+.wwebjs_*
+server/.wwebjs_*
+server/.wwebjs_auth
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
