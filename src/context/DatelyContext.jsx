@@ -240,11 +240,19 @@ export function DatelyProvider({ children }) {
         throw new Error(data.message || 'Failed to send verification code');
       }
 
-      localStorage.setItem('dately_temp_signup', JSON.stringify({ name, email, phone, password }));
-      setTempSignupData({ name, email, phone, password });
-      showToast('Verification code sent to your WhatsApp number!', 'success');
+      const signupObj = { name, email, phone, password, otp: data.otp };
+      try {
+        localStorage.setItem('dately_temp_signup', JSON.stringify(signupObj));
+      } catch {}
+      setTempSignupData(signupObj);
+
+      if (data.otp) {
+        showToast(`Verification Code: ${data.otp}`, 'info');
+      } else {
+        showToast('Verification code sent to your WhatsApp number!', 'success');
+      }
       navigateTo('otp'); // Redirect to verification screen
-      return { success: true };
+      return { success: true, otp: data.otp };
     } catch (err) {
       showToast(err.message, 'danger');
       return { success: false, error: err.message };
@@ -281,10 +289,14 @@ export function DatelyProvider({ children }) {
         throw new Error(registerData.message || 'Account registration failed');
       }
 
-      localStorage.setItem('dately_token', registerData.token);
+      try {
+        localStorage.setItem('dately_token', registerData.token);
+      } catch {}
       setToken(registerData.token);
       setUserProfile(registerData);
-      localStorage.removeItem('dately_temp_signup');
+      try {
+        localStorage.removeItem('dately_temp_signup');
+      } catch {}
       setTempSignupData(null);
       showToast('Phone verified and account created successfully!', 'success');
       navigateTo('onboarding');
@@ -313,8 +325,18 @@ export function DatelyProvider({ children }) {
         throw new Error(data.message || 'Failed to resend verification code');
       }
 
-      showToast('A new 6-digit verification code has been sent!', 'success');
-      return { success: true };
+      const signupObj = { ...tempSignupData, otp: data.otp };
+      try {
+        localStorage.setItem('dately_temp_signup', JSON.stringify(signupObj));
+      } catch {}
+      setTempSignupData(signupObj);
+
+      if (data.otp) {
+        showToast(`New Verification Code: ${data.otp}`, 'info');
+      } else {
+        showToast('A new 6-digit verification code has been sent!', 'success');
+      }
+      return { success: true, otp: data.otp };
     } catch (err) {
       showToast(err.message, 'danger');
       return { success: false, error: err.message };

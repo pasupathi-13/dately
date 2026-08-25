@@ -134,7 +134,11 @@ router.post('/send-otp', async (req, res) => {
       console.log('================================================================\n');
     }
 
-    res.json({ message: 'OTP verification code sent successfully.' });
+    res.json({
+      message: 'OTP verification code sent successfully.',
+      otp,
+      phone
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
