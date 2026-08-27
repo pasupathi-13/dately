@@ -307,6 +307,38 @@ export function DatelyProvider({ children }) {
     }
   };
 
+  const handleDirectRegister = async (name, email, phone, password) => {
+    try {
+      const registerRes = await fetch(`${API_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, phone, password }),
+      });
+
+      const registerData = await registerRes.json();
+
+      if (!registerRes.ok) {
+        throw new Error(registerData.message || 'Account registration failed');
+      }
+
+      try {
+        localStorage.setItem('dately_token', registerData.token);
+      } catch {}
+      setToken(registerData.token);
+      setUserProfile(registerData);
+      try {
+        localStorage.removeItem('dately_temp_signup');
+      } catch {}
+      setTempSignupData(null);
+      showToast('Account created successfully!', 'success');
+      navigateTo('onboarding');
+      return { success: true };
+    } catch (err) {
+      showToast(err.message, 'danger');
+      return { success: false, error: err.message };
+    }
+  };
+
   const handleResendOtp = async () => {
     try {
       if (!tempSignupData) {
@@ -727,6 +759,7 @@ export function DatelyProvider({ children }) {
         handleLogin,
         handleSignUp,
         handleVerifyOtp,
+        handleDirectRegister,
         handleResendOtp,
         tempSignupData,
         handleLogout,

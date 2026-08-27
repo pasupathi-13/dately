@@ -19,6 +19,12 @@ export default function OtpPage() {
     }
   }, [countdown]);
 
+  useEffect(() => {
+    if (tempSignupData?.otp && String(tempSignupData.otp).length === 6) {
+      setOtp(String(tempSignupData.otp).split(""));
+    }
+  }, [tempSignupData]);
+
   // Auto-fill helper
   const handleAutoFill = (codeToFill) => {
     const code = String(codeToFill || tempSignupData?.otp || "").trim();

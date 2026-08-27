@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/Button";
 import { useDately } from "@/context/DatelyContext";
 import { API_URL } from "@/config/api";
 export default function SignUpPage() {
-  const { navigateTo, handleSignUp, showToast } = useDately();
+  const { navigateTo, handleSignUp, handleDirectRegister, showToast } = useDately();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -30,8 +31,8 @@ export default function SignUpPage() {
       [name]: type === "checkbox" ? checked : value
     }));
   };
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+
+  const validateForm = () => {
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "Full Name is required";
     if (!formData.email.trim()) {
@@ -55,10 +56,32 @@ export default function SignUpPage() {
     }
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      return;
+      return false;
     }
-    
-    await handleSignUp(formData.name, formData.email, formData.phone, formData.password);
+    setErrors({});
+    return true;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+    setIsSubmitting(true);
+    try {
+      await handleDirectRegister(formData.name, formData.email, formData.phone, formData.password);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleOtpFlow = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+    setIsSubmitting(true);
+    try {
+      await handleSignUp(formData.name, formData.email, formData.phone, formData.password);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   return <div className="min-h-screen bg-dately-background flex flex-col items-center justify-center p-4">{
     /* Brand Header */
@@ -136,9 +159,26 @@ export default function SignUpPage() {
                 Privacy Policy
               </a>
               .
-            </label></div>{errors.agree && <p className="text-xs text-dately-danger mt-0.5">{errors.agree}</p>}<Button type="submit" variant="primary" fullWidth className="py-2.5 shadow-md">
-            Create Account
-          </Button></form><div className="relative my-6 text-center"><span className="absolute inset-x-0 top-1/2 border-t border-dately-border" /><span className="relative bg-white px-3 text-xs text-dately-slate uppercase tracking-wider font-semibold">
+            </label>
+          </div>
+          {errors.agree && <p className="text-xs text-dately-danger mt-0.5">{errors.agree}</p>}
+
+          <div className="space-y-2 pt-2">
+            <Button type="submit" variant="primary" fullWidth disabled={isSubmitting} className="py-2.5 shadow-md font-bold">
+              {isSubmitting ? "Creating Account..." : "Create Account & Sign In"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              fullWidth
+              disabled={isSubmitting}
+              onClick={handleOtpFlow}
+              className="py-2 text-xs font-semibold text-dately-slate hover:text-dately-navy"
+            >
+              Verify via WhatsApp OTP
+            </Button>
+          </div>
+        </form><div className="relative my-6 text-center"><span className="absolute inset-x-0 top-1/2 border-t border-dately-border" /><span className="relative bg-white px-3 text-xs text-dately-slate uppercase tracking-wider font-semibold">
             Or
           </span></div>{
     /* Google sign up */
