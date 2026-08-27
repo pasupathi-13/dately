@@ -17,7 +17,8 @@ export default function SettingsPage() {
     language,
     changeLanguage,
     t,
-    navigateTo
+    navigateTo,
+    getAuthHeaders
   } = useDately();
 
   const [activeTab, setActiveTab] = useState("notifications");
@@ -409,17 +410,16 @@ export default function SettingsPage() {
                         variant="outline"
                         onClick={async () => {
                           try {
-                            const token = localStorage.getItem("dately_token");
                             const res = await fetch(`${API_URL}/notifications/test-email`, {
                               method: "POST",
                               headers: {
-                                "Authorization": `Bearer ${token}`,
+                                ...getAuthHeaders(),
                                 "Content-Type": "application/json"
                               }
                             });
                             const data = await res.json();
                             if (res.ok) {
-                              showToast(`Test email sent successfully to ${data.recipient || 'your inbox'}!`, "success");
+                              showToast(`Test email sent successfully to ${data.recipient || userProfile?.email || 'your inbox'}!`, "success");
                             } else {
                               showToast(data.message || "Failed to send test email.", "danger");
                             }
@@ -437,17 +437,16 @@ export default function SettingsPage() {
                         variant="outline"
                         onClick={async () => {
                           try {
-                            const token = localStorage.getItem("dately_token");
                             const res = await fetch(`${API_URL}/notifications/test-whatsapp`, {
                               method: "POST",
                               headers: {
-                                "Authorization": `Bearer ${token}`,
+                                ...getAuthHeaders(),
                                 "Content-Type": "application/json"
                               }
                             });
                             const data = await res.json();
                             if (res.ok) {
-                              showToast(`Test WhatsApp message sent successfully to ${data.recipient}!`, "success");
+                              showToast(`Test WhatsApp message sent successfully to ${data.recipient || userProfile?.phone}!`, "success");
                             } else {
                               showToast(data.message || "Failed to send test WhatsApp message.", "danger");
                             }
