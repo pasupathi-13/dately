@@ -34,7 +34,11 @@ router.post('/test-email', protect, async (req, res) => {
       recipient: req.user.email
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Test email error:', error.message);
+    res.status(400).json({
+      message: `Email sending failed (${error.message}). Please verify your SMTP_USER and SMTP_PASS in Render environment variables.`,
+      error: error.message
+    });
   }
 });
 
