@@ -31,7 +31,12 @@ const defaultUserProfile = {
 export function DatelyProvider({ children }) {
   const [token, setToken] = useState(() => {
     try {
-      return localStorage.getItem('dately_token') || '';
+      const stored = localStorage.getItem('dately_token');
+      if (!stored || stored === 'null' || stored === 'undefined' || stored.split('.').length !== 3) {
+        try { localStorage.removeItem('dately_token'); } catch {}
+        return '';
+      }
+      return stored;
     } catch {
       return '';
     }
@@ -64,7 +69,7 @@ export function DatelyProvider({ children }) {
     try {
       const savedPage = localStorage.getItem('dately_page');
       const savedToken = localStorage.getItem('dately_token');
-      if (savedToken) {
+      if (savedToken && savedToken.split('.').length === 3) {
         return savedPage && !['landing', 'login', 'signup', 'forgot-password'].includes(savedPage) ? savedPage : 'dashboard';
       }
     } catch {}
@@ -88,6 +93,9 @@ export function DatelyProvider({ children }) {
   };
 
   const getAuthHeaders = () => {
+    if (!token || token === 'null' || token === 'undefined' || token.split('.').length !== 3) {
+      return {};
+    }
     return {
       'Authorization': `Bearer ${token}`
     };
@@ -110,7 +118,7 @@ export function DatelyProvider({ children }) {
     try {
       const params = new URLSearchParams(window.location.search);
       const urlToken = params.get('token');
-      if (urlToken) {
+      if (urlToken && urlToken.split('.').length === 3) {
         localStorage.setItem('dately_token', urlToken);
         setToken(urlToken);
         // Clean up search parameters from browser URL
@@ -124,7 +132,7 @@ export function DatelyProvider({ children }) {
     let isCancelled = false;
 
     const loadData = async () => {
-      if (!token) {
+      if (!token || token === 'null' || token === 'undefined' || token.split('.').length !== 3) {
         setIsLoaded(true);
         return;
       }
