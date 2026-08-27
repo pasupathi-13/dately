@@ -774,6 +774,7 @@ export function DatelyProvider({ children }) {
         language,
         changeLanguage,
         t,
+        getAuthHeaders,
       }}
     >
       {children}
