@@ -4,8 +4,42 @@ import fs from 'fs';
 import path from 'path';
 
 const credentialPath = path.join(process.cwd(), 'serviceAccountKey.json');
+const dataDir = path.join(process.cwd(), 'data');
+const dbFilePath = path.join(dataDir, 'db.json');
+
 let firestoreDb;
 let isMockDb = false;
+
+// Ensure data directory exists for local disk persistence
+if (!fs.existsSync(dataDir)) {
+  try {
+    fs.mkdirSync(dataDir, { recursive: true });
+  } catch (err) {
+    console.error('Failed to create data directory:', err.message);
+  }
+}
+
+const saveStoreToDisk = (store) => {
+  try {
+    fs.writeFileSync(dbFilePath, JSON.stringify(store, null, 2), 'utf8');
+  } catch (err) {
+    console.error('Failed to persist database to disk:', err.message);
+  }
+};
+
+const loadStoreFromDisk = () => {
+  if (fs.existsSync(dbFilePath)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(dbFilePath, 'utf8'));
+      if (data && typeof data === 'object') {
+        return data;
+      }
+    } catch (err) {
+      console.warn('Failed to parse db.json, initializing fresh store:', err.message);
+    }
+  }
+  return null;
+};
 
 // High-fidelity Mock Firestore database for sandboxed/local fallback
 class MockDocSnapshot {
@@ -38,6 +72,9 @@ class MockDocRef {
   }
 
   async get() {
+    if (!this.storeRef[this.collectionName]) {
+      this.storeRef[this.collectionName] = {};
+    }
     const data = this.storeRef[this.collectionName][this.id];
     return new MockDocSnapshot(this.id, data);
   }
@@ -52,6 +89,7 @@ class MockDocRef {
     } else {
       this.storeRef[this.collectionName][this.id] = data;
     }
+    saveStoreToDisk(this.storeRef);
     return this;
   }
 
@@ -61,12 +99,14 @@ class MockDocRef {
     }
     const current = this.storeRef[this.collectionName][this.id];
     this.storeRef[this.collectionName][this.id] = { ...current, ...data };
+    saveStoreToDisk(this.storeRef);
     return this;
   }
 
   async delete() {
     if (this.storeRef[this.collectionName]) {
       delete this.storeRef[this.collectionName][this.id];
+      saveStoreToDisk(this.storeRef);
     }
     return this;
   }
@@ -75,7 +115,7 @@ class MockDocRef {
 class MockQuery {
   constructor(collectionName, docs, storeRef) {
     this.collectionName = collectionName;
-    this.docs = docs; // array of doc data objects with .id
+    this.docs = docs;
     this.storeRef = storeRef;
   }
 
@@ -121,6 +161,7 @@ class MockCollection {
       this.storeRef[this.name] = {};
     }
     this.storeRef[this.name][docId] = data;
+    saveStoreToDisk(this.storeRef);
     return new MockDocRef(this.name, docId, this.storeRef);
   }
 
@@ -145,39 +186,47 @@ class MockCollection {
 
 class MockFirestore {
   constructor() {
-    // Seed DB in memory
-    this.store = {
-      users: {
-        'default-user-id': {
-          name: 'pasupathi',
-          email: 'atpasupathi77@gmail.com',
-          phone: '9361496790',
-          password: '$2a$10$tM9sM3WpIekV1K9Gv1tL9exPZ7s28hZ7J5pUeA05k.Jv6/a/01H/G', // bcrypt for 'password123'
-          onboarded: true,
-          notificationPreferences: { email: true, sms: true, push: true, voiceCalls: false, voiceCallsCriticalOnly: true },
-          googleConnected: false,
-          googleDriveSimulatedQuotaUsed: 13421772800,
-          googleDriveSimulatedQuotaTotal: 16106127360,
-          googleDriveForceQuotaExceeded: false,
-          googleTokens: null,
-          googleDriveFolderId: '',
-          createdAt: new Date().toISOString()
-        }
-      },
-      documents: {},
-      obligations: {
-        'default-ob-id': {
-          user: 'default-user-id',
-          name: 'electricity biill',
-          category: 'Bills',
-          amount: 1500,
-          dueDate: '2026-08-20',
-          status: 'Pending',
-          reminderSet: true,
-          createdAt: new Date().toISOString()
-        }
-      }
-    };
+    const diskStore = loadStoreFromDisk();
+    if (diskStore) {
+      this.store = diskStore;
+    } else {
+      // Seed default admin / demo user
+      this.store = {
+        users: {
+          'default-user-id': {
+            name: 'pasupathi',
+            email: 'atpasupathi77@gmail.com',
+            phone: '9361496790',
+            password: '$2a$10$fWi3kqlAFXh0GvbeP9MT6.In42wBQzMwFG4CGABqvGlkRVA8mn6vO', // bcrypt for 'password123'
+            onboarded: true,
+            notificationPreferences: { email: true, sms: true, push: true, voiceCalls: false, voiceCallsCriticalOnly: true },
+            googleConnected: false,
+            googleDriveSimulatedQuotaUsed: 0,
+            googleDriveSimulatedQuotaTotal: 16106127360,
+            googleDriveForceQuotaExceeded: false,
+            googleTokens: null,
+            googleDriveFolderId: '',
+            createdAt: new Date().toISOString()
+          }
+        },
+        documents: {},
+        obligations: {
+          'default-ob-id': {
+            user: 'default-user-id',
+            name: 'electricity bill',
+            category: 'Bills',
+            amount: 1500,
+            dueDate: '2026-09-01',
+            status: 'Pending',
+            reminderSet: true,
+            createdAt: new Date().toISOString()
+          }
+        },
+        reminders: {},
+        otps: {}
+      };
+      saveStoreToDisk(this.store);
+    }
   }
 
   collection(name) {
@@ -188,22 +237,42 @@ class MockFirestore {
   }
 }
 
-// 1. Initialize Real Firebase if serviceAccountKey.json exists, otherwise fall back to Simulator
-if (fs.existsSync(credentialPath)) {
+// 1. Initialize Real Firebase if serviceAccountKey.json or FIREBASE_SERVICE_ACCOUNT env exists
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  try {
+    let serviceAccount;
+    const raw = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
+    if (raw.startsWith('{')) {
+      serviceAccount = JSON.parse(raw);
+    } else {
+      // Try base64 decoding
+      serviceAccount = JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
+    }
+    initializeApp({
+      credential: cert(serviceAccount)
+    });
+    firestoreDb = getFirestore();
+    console.log('🔥 FIREBASE SERVICE ACCOUNT ACTIVE: Connected to Real Cloud Firestore from Env');
+  } catch (error) {
+    console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT env, falling back to disk database:', error.message);
+    firestoreDb = new MockFirestore();
+    isMockDb = true;
+  }
+} else if (fs.existsSync(credentialPath)) {
   try {
     const serviceAccount = JSON.parse(fs.readFileSync(credentialPath, 'utf8'));
     initializeApp({
       credential: cert(serviceAccount)
     });
     firestoreDb = getFirestore();
-    console.log('🔥 FIREBASE SERVICE ACCOUNT ACTIVE: Connected to Real Cloud Firestore');
+    console.log('🔥 FIREBASE SERVICE ACCOUNT ACTIVE: Connected to Real Cloud Firestore from file');
   } catch (error) {
-    console.error('Failed to initialize Firebase Admin SDK, falling back to memory database:', error.message);
+    console.error('Failed to initialize Firebase Admin SDK from file, falling back to disk database:', error.message);
     firestoreDb = new MockFirestore();
     isMockDb = true;
   }
 } else {
-  console.log('⚠️ serviceAccountKey.json NOT FOUND: Initialized In-Memory Firestore Sandbox Mode');
+  console.log('📦 Initialized Persistent Disk / Sandbox Database Engine');
   firestoreDb = new MockFirestore();
   isMockDb = true;
 }

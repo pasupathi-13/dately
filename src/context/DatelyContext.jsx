@@ -131,7 +131,7 @@ export function DatelyProvider({ children }) {
 
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
 
         // 1. Fetch User Profile
         const userRes = await fetch(`${API_URL}/auth/profile`, {
@@ -141,7 +141,7 @@ export function DatelyProvider({ children }) {
         clearTimeout(timeoutId);
         
         if (!userRes.ok) {
-          if (!isCancelled) {
+          if (!isCancelled && userRes.status === 401) {
             try {
               localStorage.removeItem('dately_token');
             } catch {}

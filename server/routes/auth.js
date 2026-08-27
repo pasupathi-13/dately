@@ -9,8 +9,10 @@ import { checkDriveStorage } from '../services/driveService.js';
 const router = express.Router();
 
 // Generate JWT Helper
+const JWT_SECRET = process.env.JWT_SECRET || 'dately_secure_jwt_secret_key_2026_!@#';
+
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
+  return jwt.sign({ id }, JWT_SECRET, {
     expiresIn: '30d',
   });
 };
@@ -542,13 +544,14 @@ router.get('/google/callback', async (req, res) => {
         console.error('Failed to create folder on Google Sign In:', driveErr.message);
       }
 
+      const clientOrigin = req.headers.origin || process.env.FRONTEND_URL || 'https://dately-ten.vercel.app';
       const jwtToken = generateToken(userId);
-      const redirectBase = isNewUser ? 'http://localhost:3000/onboarding' : 'http://localhost:3000/dashboard';
+      const redirectBase = isNewUser ? `${clientOrigin}/onboarding` : `${clientOrigin}/dashboard`;
       return res.redirect(`${redirectBase}?token=${jwtToken}`);
     }
 
     // 2. Google Drive Storage Link Flow (User was already logged in)
-    const decoded = jwt.verify(state, process.env.JWT_SECRET);
+    const decoded = jwt.verify(state, JWT_SECRET);
     const userDocRef = db.collection('users').doc(decoded.id);
     const userDoc = await userDocRef.get();
 
@@ -570,13 +573,15 @@ router.get('/google/callback', async (req, res) => {
       googleConnected: true
     });
 
-    res.redirect('http://localhost:3000/settings?google=connected');
+    const clientOrigin = req.headers.origin || process.env.FRONTEND_URL || 'https://dately-ten.vercel.app';
+    res.redirect(`${clientOrigin}/settings?google=connected`);
   } catch (err) {
     console.error('Google OAuth callback error:', err.message);
+    const clientOrigin = req.headers.origin || process.env.FRONTEND_URL || 'https://dately-ten.vercel.app';
     if (state === 'google-login') {
-      res.redirect('http://localhost:3000/login?google=error');
+      res.redirect(`${clientOrigin}/login?google=error`);
     } else {
-      res.redirect('http://localhost:3000/settings?google=error');
+      res.redirect(`${clientOrigin}/settings?google=error`);
     }
   }
 });

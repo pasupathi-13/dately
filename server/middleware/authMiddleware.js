@@ -7,7 +7,8 @@ export const protect = async (req, res, next) => {
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
       token = req.headers.authorization.split(' ')[1];
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const JWT_SECRET = process.env.JWT_SECRET || 'dately_secure_jwt_secret_key_2026_!@#';
+      const decoded = jwt.verify(token, JWT_SECRET);
       
       const userDoc = await db.collection('users').doc(decoded.id).get();
       if (userDoc.exists) {
