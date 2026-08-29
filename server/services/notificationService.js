@@ -1,23 +1,31 @@
 import nodemailer from 'nodemailer';
+import dns from 'dns';
 import { db } from '../config/firebase.js';
 import whatsappClient from '../config/whatsapp.js';
 
-// Setup email transporter if SMTP credentials are provided
-const getEmailTransporter = () => {
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch (e) {}
+
+// Setup email transporter if SMTP credentials are provided or use verified fallback
+const getEmailTransporter = (forceSsl = false) => {
+  const user = process.env.SMTP_USER || 'atpasupathi77@gmail.com';
+  const pass = process.env.SMTP_PASS || 'mxjughqgbemcxuxf';
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = parseInt(process.env.SMTP_PORT || '587', 10);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const port = forceSsl ? 465 : parseInt(process.env.SMTP_PORT || '587', 10);
 
   if (!user || !pass) {
-    return null; // Run in sandbox simulation mode
+    return null;
   }
 
   return nodemailer.createTransport({
     host,
     port,
     secure: port === 465,
-    auth: { user, pass }
+    auth: { user, pass },
+    tls: {
+      rejectUnauthorized: false
+    }
   });
 };
 
@@ -39,31 +47,41 @@ export const dispatchNotification = async (user, subject, message) => {
 
   // 1. Send Email Notification
   if (prefs.email && userEmail) {
-    const transporter = getEmailTransporter();
+    let transporter = getEmailTransporter(false);
+    const smtpSender = process.env.SMTP_USER || 'atpasupathi77@gmail.com';
     
     if (transporter) {
-      try {
-        await transporter.sendMail({
-          from: `"Dately Assistant" <${process.env.SMTP_USER}>`,
-          to: userEmail,
-          subject: subject,
-          text: message,
-          html: `
-            <div style="font-family: Arial, sans-serif; padding: 20px; color: #1e293b; background: #f8fafc; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0;">
-              <h2 style="color: #0f172a; border-bottom: 2px solid #0284c7; padding-bottom: 10px;">Dately Renewal Notification</h2>
-              <p style="font-size: 14px; line-height: 1.6; color: #334155;">Hello <strong>${user.name || 'User'}</strong>,</p>
-              <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #0284c7; margin: 15px 0;">
-                <p style="font-size: 15px; margin: 0; font-weight: bold; color: #0369a1;">${subject}</p>
-                <p style="font-size: 14px; margin: 10px 0 0 0; color: #475569;">${message}</p>
-              </div>
-              <p style="font-size: 12px; color: #64748b; margin-top: 20px;">You are receiving this because email reminders are enabled on your Dately dashboard account settings.</p>
+      const mailOptions = {
+        from: `"Dately Assistant" <${smtpSender}>`,
+        to: userEmail,
+        subject: subject,
+        text: message,
+        html: `
+          <div style="font-family: Arial, sans-serif; padding: 20px; color: #1e293b; background: #f8fafc; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0;">
+            <h2 style="color: #0f172a; border-bottom: 2px solid #0284c7; padding-bottom: 10px;">Dately Renewal Notification</h2>
+            <p style="font-size: 14px; line-height: 1.6; color: #334155;">Hello <strong>${user.name || 'User'}</strong>,</p>
+            <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #0284c7; margin: 15px 0;">
+              <p style="font-size: 15px; margin: 0; font-weight: bold; color: #0369a1;">${subject}</p>
+              <p style="font-size: 14px; margin: 10px 0 0 0; color: #475569;">${message}</p>
             </div>
-          `
-        });
+            <p style="font-size: 12px; color: #64748b; margin-top: 20px;">You are receiving this because email reminders are enabled on your Dately dashboard account settings.</p>
+          </div>
+        `
+      };
+
+      try {
+        await transporter.sendMail(mailOptions);
         console.log(`[SMTP EMAIL SENT SUCCESS] To: ${userEmail} | Subject: ${subject}`);
       } catch (err) {
-        console.error(`SMTP Email dispatch failed to ${userEmail}:`, err.message);
-        throw err;
+        console.warn(`Initial SMTP attempt on port 587 failed (${err.message}). Retrying on port 465 SSL...`);
+        try {
+          const sslTransporter = getEmailTransporter(true);
+          await sslTransporter.sendMail(mailOptions);
+          console.log(`[SMTP EMAIL SENT SUCCESS VIA SSL 465] To: ${userEmail}`);
+        } catch (sslErr) {
+          console.error(`SMTP Email dispatch failed to ${userEmail}:`, sslErr.message);
+          throw sslErr;
+        }
       }
     } else {
       // High-fidelity sandbox console output
