@@ -24,19 +24,28 @@ router.post('/register', async (req, res) => {
   const { name, email, phone, password } = req.body;
 
   try {
-    const userSnapshot = await db.collection('users').where('email', '==', email.toLowerCase()).get();
+    const cleanName = (name || '').trim();
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanPhone = (phone || '').trim();
+    const cleanPassword = (password || '').trim();
+
+    if (!cleanName || !cleanEmail || !cleanPassword) {
+      return res.status(400).json({ message: 'Name, email, and password are required' });
+    }
+
+    const userSnapshot = await db.collection('users').where('email', '==', cleanEmail).get();
 
     if (!userSnapshot.empty) {
       return res.status(400).json({ message: 'User already exists with this email' });
     }
 
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(cleanPassword, salt);
 
     const newUser = {
-      name,
-      email: email.toLowerCase(),
-      phone,
+      name: cleanName,
+      email: cleanEmail,
+      phone: cleanPhone,
       password: hashedPassword,
       onboarded: false,
       notificationPreferences: {
