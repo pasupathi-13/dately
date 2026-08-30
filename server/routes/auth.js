@@ -441,20 +441,20 @@ const DEFAULT_GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || [71,79,
 
 const getOAuthRedirectUri = (req) => {
   if (process.env.GOOGLE_REDIRECT_URI) return process.env.GOOGLE_REDIRECT_URI;
-  const host = req.get('host');
-  if (host && !host.includes('localhost')) {
+  const forwardedHost = req?.headers ? req.headers['x-forwarded-host'] : null;
+  if (forwardedHost && !forwardedHost.includes('localhost') && !forwardedHost.includes('127.0.0.1')) {
+    return `https://${forwardedHost}/api/auth/google/callback`;
+  }
+  const host = req?.get ? req.get('host') : null;
+  if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
     return `https://${host}/api/auth/google/callback`;
   }
-  return 'http://localhost:5000/api/auth/google/callback';
+  return 'https://dately-g62m.onrender.com/api/auth/google/callback';
 };
 
 const getFrontendBaseUrl = (req) => {
   if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL;
-  const host = req.get('host');
-  if (host && !host.includes('localhost')) {
-    return 'https://dately-ten.vercel.app';
-  }
-  return 'http://localhost:3000';
+  return 'https://dately-ten.vercel.app';
 };
 
 // @desc    Initiate Google Sign In / Sign Up Flow
