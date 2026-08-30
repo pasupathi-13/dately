@@ -56,7 +56,7 @@ router.post('/register', async (req, res) => {
         voiceCallsCriticalOnly: true
       },
       googleConnected: false,
-      googleDriveSimulatedQuotaUsed: 13421772800, // 12.5 GB in bytes
+      googleDriveSimulatedQuotaUsed: 0,
       googleDriveSimulatedQuotaTotal: 16106127360, // 15 GB in bytes
       googleDriveForceQuotaExceeded: false,
       googleTokens: null,
@@ -316,10 +316,10 @@ router.get('/profile', protect, async (req, res) => {
         phone: user.phone,
         onboarded: user.onboarded,
         notificationPreferences: user.notificationPreferences,
-        googleConnected: user.googleConnected,
-        googleDriveSimulatedQuotaUsed: driveQuota ? driveQuota.used : user.googleDriveSimulatedQuotaUsed,
-        googleDriveSimulatedQuotaTotal: driveQuota ? driveQuota.total : user.googleDriveSimulatedQuotaTotal,
-        googleDriveForceQuotaExceeded: user.googleDriveForceQuotaExceeded,
+        googleConnected: user.googleConnected || false,
+        googleDriveSimulatedQuotaUsed: driveQuota ? driveQuota.used : (user.googleDriveSimulatedQuotaUsed || 0),
+        googleDriveSimulatedQuotaTotal: driveQuota ? driveQuota.total : (user.googleDriveSimulatedQuotaTotal || 16106127360),
+        googleDriveForceQuotaExceeded: user.googleDriveForceQuotaExceeded || false,
       });
     } else {
       res.status(404).json({ message: 'User profile not found' });

@@ -8,15 +8,17 @@ const DatelyContext = createContext(undefined);
 import { API_URL } from '@/config/api';
 
 const defaultUserProfile = {
-  name: "Pasupathi A T",
-  email: "atpasupathi77@gmail.com",
-  phone: "+91 98765 43210",
+  name: "",
+  email: "",
+  phone: "",
   avatar: "",
-  onboarded: true,
-  googleConnected: true,
+  onboarded: false,
+  googleConnected: false,
+  googleDriveSimulatedQuotaUsed: 0,
+  googleDriveSimulatedQuotaTotal: 16106127360,
   notificationPreferences: {
     email: true,
-    sms: true,
+    sms: false,
     push: true,
     voiceCalls: false,
     voiceCallsCriticalOnly: true
@@ -24,7 +26,7 @@ const defaultUserProfile = {
   notificationChannels: {
     push: true,
     email: true,
-    sms: true
+    sms: false
   }
 };
 
@@ -45,7 +47,7 @@ export function DatelyProvider({ children }) {
   const [documents, setDocuments] = useState([]);
   const [obligations, setObligations] = useState([]);
   const [reminders, setReminders] = useState([]);
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const [notifications, setNotifications] = useState([]);
   const [toast, setToast] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [language, setLanguage] = useState(() => {
