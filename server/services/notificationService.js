@@ -1,7 +1,6 @@
 import nodemailer from 'nodemailer';
 import dns from 'dns';
 import { db } from '../config/firebase.js';
-import whatsappClient from '../config/whatsapp.js';
 
 try {
   dns.setDefaultResultOrder('ipv4first');
@@ -89,25 +88,6 @@ export const dispatchNotification = async (user, subject, message) => {
       console.log(`[EMAIL SIMULATION FOR ${userEmail.toUpperCase()}]`);
       console.log(`SUBJECT: ${subject}`);
       console.log(`MESSAGE: ${message}`);
-      console.log('================================================================\n');
-    }
-  }
-
-  // 2. Send WhatsApp Notification (mapped to prefs.sms / prefs.whatsapp)
-  if (prefs.sms && userPhone && userPhone !== 'N/A') {
-    try {
-      let cleanNumber = userPhone.replace('+', '').replace(/\s/g, '');
-      if (cleanNumber.length === 10) {
-        cleanNumber = `91${cleanNumber}`;
-      }
-      const chatId = `${cleanNumber}@c.us`;
-      await whatsappClient.sendMessage(chatId, `Dately Alert! *${subject}*\n\n${message}`);
-      console.log(`[WHATSAPP WEB SENT SUCCESS] To: ${cleanNumber} | Msg: ${message}`);
-    } catch (err) {
-      console.error(`WhatsApp Web dispatch failed to ${userPhone}:`, err.message);
-      console.log('\n================================================================');
-      console.log(`[WHATSAPP SIMULATION FALLBACK FOR ${userPhone}]`);
-      console.log(`BODY: Dately Alert! *${subject}*\n\n${message}`);
       console.log('================================================================\n');
     }
   }

@@ -239,7 +239,7 @@ export function DatelyProvider({ children }) {
       const res = await fetch(`${API_URL}/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone }),
+        body: JSON.stringify({ email, phone }),
       });
 
       const data = await res.json();
@@ -255,9 +255,9 @@ export function DatelyProvider({ children }) {
       setTempSignupData(signupObj);
 
       if (data.otp) {
-        showToast(`Verification Code: ${data.otp}`, 'info');
+        showToast(`Verification code sent to ${email}`, 'success');
       } else {
-        showToast('Verification code sent to your WhatsApp number!', 'success');
+        showToast('Verification code sent to your email address!', 'success');
       }
       navigateTo('otp'); // Redirect to verification screen
       return { success: true, otp: data.otp };
@@ -276,7 +276,7 @@ export function DatelyProvider({ children }) {
       const verifyRes = await fetch(`${API_URL}/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: tempSignupData.phone, otp }),
+        body: JSON.stringify({ email: tempSignupData.email, phone: tempSignupData.phone, otp }),
       });
 
       const verifyData = await verifyRes.json();
@@ -306,7 +306,7 @@ export function DatelyProvider({ children }) {
         localStorage.removeItem('dately_temp_signup');
       } catch {}
       setTempSignupData(null);
-      showToast('Phone verified and account created successfully!', 'success');
+      showToast('Email verified and account created successfully!', 'success');
       navigateTo('onboarding');
       return { success: true };
     } catch (err) {
@@ -356,7 +356,7 @@ export function DatelyProvider({ children }) {
       const res = await fetch(`${API_URL}/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: tempSignupData.phone }),
+        body: JSON.stringify({ email: tempSignupData.email, phone: tempSignupData.phone }),
       });
 
       const data = await res.json();
@@ -370,12 +370,7 @@ export function DatelyProvider({ children }) {
         localStorage.setItem('dately_temp_signup', JSON.stringify(signupObj));
       } catch {}
       setTempSignupData(signupObj);
-
-      if (data.otp) {
-        showToast(`New Verification Code: ${data.otp}`, 'info');
-      } else {
-        showToast('A new 6-digit verification code has been sent!', 'success');
-      }
+      showToast('New verification code sent to your email!', 'success');
       return { success: true, otp: data.otp };
     } catch (err) {
       showToast(err.message, 'danger');

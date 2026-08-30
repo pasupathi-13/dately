@@ -1,4 +1,4 @@
-import { HelpCircle, CheckCircle2, ShieldAlert, Sparkles, Key, FileText, ListTodo, CreditCard, Calendar, MessageSquare } from "lucide-react";
+import { HelpCircle, CheckCircle2, ShieldAlert, Sparkles, Key, FileText, ListTodo, CreditCard, Calendar, Mail } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useDately } from "@/context/DatelyContext";
 
@@ -19,9 +19,9 @@ export default function HelpSupportPage() {
       color: "text-green-600 bg-green-50"
     },
     {
-      title: "3. WhatsApp Notification Gateway Connection",
-      desc: "Dately monitors your expirations 24/7. To receive active alerts on WhatsApp, verify that your profile phone number is correct and enable 'WhatsApp Messages' in Settings. You can click 'Send Test WhatsApp' to test the gateway connection.",
-      icon: MessageSquare,
+      title: "3. Email Notification & Expiry Alerts",
+      desc: "Dately monitors your expirations and bill deadlines 24/7. To receive active alerts, ensure your email address is verified in Settings. You can click 'Send Test Email' to verify your connection.",
+      icon: Mail,
       color: "text-purple-600 bg-purple-50"
     }
   ];

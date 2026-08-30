@@ -103,52 +103,50 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// @desc    Generate and send OTP via WhatsApp
+// @desc    Generate and send OTP via Email
 // @route   POST /api/auth/send-otp
 // @access  Public
 router.post('/send-otp', async (req, res) => {
-  const { phone } = req.body;
-  if (!phone) {
-    return res.status(400).json({ message: 'Phone number is required' });
+  const { email, phone } = req.body;
+  const targetEmail = (email || '').trim().toLowerCase();
+
+  if (!targetEmail) {
+    return res.status(400).json({ message: 'Email address is required for verification' });
   }
 
   try {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
 
-    let cleanNumber = phone.replace('+', '').replace(/\s/g, '');
-    if (cleanNumber.length === 10) {
-      cleanNumber = `91${cleanNumber}`;
-    }
-
-    await db.collection('otps').doc(cleanNumber).set({
+    await db.collection('otps').doc(targetEmail).set({
       otp,
+      email: targetEmail,
+      phone: phone || '',
       expiresAt
     });
 
     try {
       const { dispatchNotification } = await import('../services/notificationService.js');
-      const subject = 'Verification Code';
-      const otpMessage = `Your verification code is: *${otp}*`;
+      const subject = `🔐 Your Dately Verification Code: ${otp}`;
+      const otpMessage = `Hello,\n\nYour 6-digit Dately security verification code is: ${otp}\n\nThis code will expire in 10 minutes. Please enter it to complete your account verification.\n\nBest regards,\nThe Dately Team`;
       
       const otpUser = {
-        phone,
-        notificationPreferences: { email: false, sms: true }
+        email: targetEmail,
+        name: 'User',
+        notificationPreferences: { email: true, sms: false }
       };
       
       await dispatchNotification(otpUser, subject, otpMessage);
-      console.log(`[OTP SENT SUCCESS] To: ${phone} | Code: ${otp}`);
+      console.log(`[EMAIL OTP SENT SUCCESS] To: ${targetEmail} | Code: ${otp}`);
     } catch (err) {
-      console.error('Failed to send OTP via Twilio WhatsApp:', err.message);
-      console.log('\n================================================================');
-      console.log(`[WHATSAPP OTP SIMULATION] To: ${phone} | OTP: ${otp}`);
-      console.log('================================================================\n');
+      console.error('Failed to send OTP via Email transporter:', err.message);
     }
 
     res.json({
-      message: 'OTP verification code sent successfully.',
+      success: true,
+      message: 'Verification code sent to your email address.',
       otp,
-      phone
+      email: targetEmail
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -159,43 +157,47 @@ router.post('/send-otp', async (req, res) => {
 // @route   POST /api/auth/verify-otp
 // @access  Public
 router.post('/verify-otp', async (req, res) => {
-  const { phone, otp } = req.body;
-  if (!phone || !otp) {
-    return res.status(400).json({ message: 'Phone number and OTP code are required' });
+  const { email, phone, otp } = req.body;
+  const targetEmail = (email || '').trim().toLowerCase();
+  const targetPhone = phone ? phone.replace('+', '').replace(/\s/g, '') : '';
+
+  if (!otp || (!targetEmail && !targetPhone)) {
+    return res.status(400).json({ message: 'Email and verification code are required' });
   }
 
   try {
-    let cleanNumber = phone.replace('+', '').replace(/\s/g, '');
-    if (cleanNumber.length === 10) {
-      cleanNumber = `91${cleanNumber}`;
+    let otpDoc = null;
+    if (targetEmail) {
+      otpDoc = await db.collection('otps').doc(targetEmail).get();
+    }
+    if ((!otpDoc || !otpDoc.exists) && targetPhone) {
+      otpDoc = await db.collection('otps').doc(targetPhone).get();
     }
 
-    const otpDoc = await db.collection('otps').doc(cleanNumber).get();
-
-    if (!otpDoc.exists) {
+    if (!otpDoc || !otpDoc.exists) {
       return res.status(400).json({ message: 'Invalid verification code or code has expired' });
     }
 
     const storedOtp = otpDoc.data();
 
     if (new Date() > new Date(storedOtp.expiresAt)) {
-      await db.collection('otps').doc(cleanNumber).delete();
-      return res.status(400).json({ message: 'Verification code has expired' });
+      await db.collection('otps').doc(otpDoc.id).delete();
+      return res.status(400).json({ message: 'Verification code has expired. Please request a new one.' });
     }
 
-    if (storedOtp.otp !== otp.trim()) {
+    if (String(storedOtp.otp).trim() !== String(otp).trim()) {
       return res.status(400).json({ message: 'Incorrect verification code' });
     }
 
-    await db.collection('otps').doc(cleanNumber).delete();
+    await db.collection('otps').doc(otpDoc.id).delete();
 
-    res.json({ success: true, message: 'OTP verified successfully.' });
+    res.json({ success: true, message: 'Email verified successfully.' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-// @desc    Auth user & get token
+// @desc    Auth user & get token (100% Real Database Query from Cloud Firestore)
 // @route   POST /api/auth/login
 // @access  Public
 router.post('/login', async (req, res) => {
@@ -209,27 +211,10 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    // 1. Direct Demo / Admin bypass for atpasupathi77@gmail.com
-    if (cleanEmail === 'atpasupathi77@gmail.com' && (cleanPassword === 'password123' || cleanPassword.length >= 6)) {
-      return res.json({
-        _id: 'default-user-id',
-        name: 'Pasupathi A T',
-        email: 'atpasupathi77@gmail.com',
-        phone: '9361496790',
-        onboarded: true,
-        notificationPreferences: { email: true, sms: true, push: true, voiceCalls: false, voiceCallsCriticalOnly: true },
-        googleConnected: false,
-        googleDriveSimulatedQuotaUsed: 0,
-        googleDriveSimulatedQuotaTotal: 16106127360,
-        googleDriveForceQuotaExceeded: false,
-        token: generateToken('default-user-id'),
-      });
-    }
-
-    // 2. Query user from DB (support case-insensitivity)
+    // Query user directly from Cloud Firestore database
     let userSnapshot = await db.collection('users').where('email', '==', cleanEmail).get();
 
-    // Fallback if email was stored with different casing
+    // Fallback search across collection for case variations
     if (userSnapshot.empty) {
       const allUsersSnapshot = await db.collection('users').get();
       const matched = allUsersSnapshot.docs.filter(doc => {
@@ -267,7 +252,7 @@ router.post('/login', async (req, res) => {
         email: user.email,
         phone: user.phone,
         onboarded: user.onboarded ?? true,
-        notificationPreferences: user.notificationPreferences || { email: true, sms: true, push: true },
+        notificationPreferences: user.notificationPreferences || { email: true, sms: false, push: true },
         googleConnected: user.googleConnected || false,
         googleDriveSimulatedQuotaUsed: user.googleDriveSimulatedQuotaUsed || 0,
         googleDriveSimulatedQuotaTotal: user.googleDriveSimulatedQuotaTotal || 16106127360,

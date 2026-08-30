@@ -431,33 +431,6 @@ export default function SettingsPage() {
                       >
                         {t('settings_test_email')}
                       </Button>
-
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={async () => {
-                          try {
-                            const res = await fetch(`${API_URL}/notifications/test-whatsapp`, {
-                              method: "POST",
-                              headers: {
-                                ...getAuthHeaders(),
-                                "Content-Type": "application/json"
-                              }
-                            });
-                            const data = await res.json();
-                            if (res.ok) {
-                              showToast(`Test WhatsApp message sent successfully to ${data.recipient || userProfile?.phone}!`, "success");
-                            } else {
-                              showToast(data.message || "Failed to send test WhatsApp message.", "danger");
-                            }
-                          } catch (err) {
-                            showToast(err.message, "danger");
-                          }
-                        }}
-                        className="font-semibold text-sm cursor-pointer"
-                      >
-                        {t('settings_test_whatsapp')}
-                      </Button>
                     </div>
                   </div>
                 </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { MessageSquare, ArrowLeft, RefreshCw, KeyRound, CheckCircle2 } from "lucide-react";
+import { Mail, ArrowLeft, RefreshCw, KeyRound, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useDately } from "@/context/DatelyContext";
 
@@ -107,12 +107,12 @@ export default function OtpPage() {
 
         <div className="text-center mb-6">
           <div className="w-12 h-12 bg-dately-primary/10 rounded-full flex items-center justify-center text-dately-primary mx-auto mb-4">
-            <MessageSquare className="w-6 h-6" />
+            <Mail className="w-6 h-6" />
           </div>
-          <h2 className="text-xl font-extrabold text-dately-navy">Verify Your Account</h2>
+          <h2 className="text-xl font-extrabold text-dately-navy">Verify Your Email Address</h2>
           <p className="text-sm text-dately-slate mt-1.5 leading-relaxed">
             We have dispatched a 6-digit verification code to:<br />
-            <span className="font-bold text-dately-navy">{tempSignupData?.phone || "your phone number"}</span>
+            <span className="font-bold text-dately-navy">{tempSignupData?.email || "your email address"}</span>
           </p>
         </div>
 

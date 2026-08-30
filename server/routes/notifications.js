@@ -42,31 +42,4 @@ router.post('/test-email', protect, async (req, res) => {
   }
 });
 
-// @desc    Send a direct test WhatsApp message to verify WhatsApp Web gateway connection
-// @route   POST /api/notifications/test-whatsapp
-// @access  Private
-router.post('/test-whatsapp', protect, async (req, res) => {
-  try {
-    if (!req.user.phone) {
-      return res.status(400).json({ message: 'User profile does not contain a phone number' });
-    }
-
-    const message = `Congratulations! This is a test WhatsApp message from Dately to verify your local WhatsApp Web connection. Telephony notifications are now operational!`;
-    
-    const testUser = {
-      ...req.user,
-      notificationPreferences: { email: false, sms: true, voiceCalls: false }
-    };
-    
-    await dispatchNotification(testUser, 'Test WhatsApp', message);
-    
-    res.json({
-      message: 'Test WhatsApp message successfully sent.',
-      recipient: req.user.phone
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
 export default router;

@@ -175,7 +175,7 @@ export default function SignUpPage() {
               onClick={handleOtpFlow}
               className="py-2 text-xs font-semibold text-dately-slate hover:text-dately-navy"
             >
-              Verify via WhatsApp OTP
+              Verify Email with OTP Code
             </Button>
           </div>
         </form><div className="relative my-6 text-center"><span className="absolute inset-x-0 top-1/2 border-t border-dately-border" /><span className="relative bg-white px-3 text-xs text-dately-slate uppercase tracking-wider font-semibold">
