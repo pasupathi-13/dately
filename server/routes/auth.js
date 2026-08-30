@@ -67,23 +67,25 @@ router.post('/register', async (req, res) => {
     const userDocRef = await db.collection('users').add(newUser);
     const userId = userDocRef.id;
 
-    // Send Welcome Email to the newly registered email address
-    try {
-      const { dispatchNotification } = await import('../services/notificationService.js');
-      const subject = 'Welcome to Dately! 🎉';
-      const welcomeMessage = `Hello ${name},\n\nWelcome to Dately! Your account has been successfully created under the email: ${email}.\n\nDately is your personal virtual assistant that tracks your expiring identity cards, certificates, insurance policies, and checklist payment deadlines (like rent or utility bills) with automated email and SMS notifications.\n\nTo get started, log in to your dashboard, upload your first document, and set up your settings.\n\nBest regards,\nThe Dately Team`;
-      
-      const welcomeUser = {
-        name,
-        email: email.toLowerCase(),
-        phone,
-        notificationPreferences: { email: true, sms: false } // Trigger welcome via email only
-      };
-      
-      await dispatchNotification(welcomeUser, subject, welcomeMessage);
-    } catch (emailErr) {
-      console.error('Welcome email dispatch failed, but registration succeeded:', emailErr.message);
-    }
+    // Send Welcome Email in background (non-blocking)
+    (async () => {
+      try {
+        const { dispatchNotification } = await import('../services/notificationService.js');
+        const subject = 'Welcome to Dately! 🎉';
+        const welcomeMessage = `Hello ${cleanName},\n\nWelcome to Dately! Your account has been successfully created under the email: ${cleanEmail}.\n\nDately is your personal virtual assistant that tracks your expiring identity cards, certificates, insurance policies, and checklist payment deadlines (like rent or utility bills) with automated email notifications.\n\nTo get started, log in to your dashboard, upload your first document, and set up your settings.\n\nBest regards,\nThe Dately Team`;
+        
+        const welcomeUser = {
+          name: cleanName,
+          email: cleanEmail,
+          phone: cleanPhone,
+          notificationPreferences: { email: true, sms: false }
+        };
+        
+        await dispatchNotification(welcomeUser, subject, welcomeMessage);
+      } catch (emailErr) {
+        console.error('Welcome email dispatch background error:', emailErr.message);
+      }
+    })();
 
     res.status(201).json({
       _id: userId,
@@ -125,22 +127,25 @@ router.post('/send-otp', async (req, res) => {
       expiresAt
     });
 
-    try {
-      const { dispatchNotification } = await import('../services/notificationService.js');
-      const subject = `🔐 Your Dately Verification Code: ${otp}`;
-      const otpMessage = `Hello,\n\nYour 6-digit Dately security verification code is: ${otp}\n\nThis code will expire in 10 minutes. Please enter it to complete your account verification.\n\nBest regards,\nThe Dately Team`;
-      
-      const otpUser = {
-        email: targetEmail,
-        name: 'User',
-        notificationPreferences: { email: true, sms: false }
-      };
-      
-      await dispatchNotification(otpUser, subject, otpMessage);
-      console.log(`[EMAIL OTP SENT SUCCESS] To: ${targetEmail} | Code: ${otp}`);
-    } catch (err) {
-      console.error('Failed to send OTP via Email transporter:', err.message);
-    }
+    // Send email in background (non-blocking for instant UI response)
+    (async () => {
+      try {
+        const { dispatchNotification } = await import('../services/notificationService.js');
+        const subject = `🔐 Your Dately Verification Code: ${otp}`;
+        const otpMessage = `Hello,\n\nYour 6-digit Dately security verification code is: ${otp}\n\nThis code will expire in 10 minutes. Please enter it to complete your account verification.\n\nBest regards,\nThe Dately Team`;
+        
+        const otpUser = {
+          email: targetEmail,
+          name: 'User',
+          notificationPreferences: { email: true, sms: false }
+        };
+        
+        await dispatchNotification(otpUser, subject, otpMessage);
+        console.log(`[EMAIL OTP SENT SUCCESS] To: ${targetEmail} | Code: ${otp}`);
+      } catch (err) {
+        console.error('Email transporter background error:', err.message);
+      }
+    })();
 
     res.json({
       success: true,
@@ -204,34 +209,40 @@ router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanIdentifier = (email || '').trim().toLowerCase();
     const cleanPassword = (password || '').trim();
 
-    if (!cleanEmail || !cleanPassword) {
+    if (!cleanIdentifier || !cleanPassword) {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    // Query user directly from Cloud Firestore database
-    let userSnapshot = await db.collection('users').where('email', '==', cleanEmail).get();
+    let userDoc = null;
+    let user = null;
 
-    // Fallback search across collection for case variations
-    if (userSnapshot.empty) {
+    // 1. Direct query by email
+    const userSnapshot = await db.collection('users').where('email', '==', cleanIdentifier).get();
+    if (!userSnapshot.empty) {
+      userDoc = userSnapshot.docs[0];
+      user = userDoc.data();
+    } else {
+      // 2. Comprehensive fallback search across collection for email or phone
       const allUsersSnapshot = await db.collection('users').get();
-      const matched = allUsersSnapshot.docs.filter(doc => {
+      const searchVal = cleanIdentifier.replace(/\s/g, '');
+      for (const doc of allUsersSnapshot.docs) {
         const u = doc.data();
-        return (u.email || '').trim().toLowerCase() === cleanEmail;
-      });
-      if (matched.length > 0) {
-        userSnapshot = { docs: matched, empty: false };
+        const uEmail = (u.email || '').trim().toLowerCase();
+        const uPhone = (u.phone || '').trim().replace(/\s/g, '');
+        if (uEmail === cleanIdentifier || (uPhone && searchVal && (uPhone === searchVal || uPhone.endsWith(searchVal)))) {
+          userDoc = doc;
+          user = u;
+          break;
+        }
       }
     }
 
-    if (userSnapshot.empty) {
+    if (!userDoc || !user) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
-
-    const userDoc = userSnapshot.docs[0];
-    const user = userDoc.data();
     
     let isMatch = false;
     if (user.password) {
@@ -240,7 +251,12 @@ router.post('/login', async (req, res) => {
       } catch (e) {
         isMatch = false;
       }
-      if (!isMatch && cleanPassword === user.password) {
+      if (!isMatch) {
+        try {
+          isMatch = await bcrypt.compare(password, user.password);
+        } catch (e) {}
+      }
+      if (!isMatch && (cleanPassword === user.password || password === user.password)) {
         isMatch = true;
       }
     }

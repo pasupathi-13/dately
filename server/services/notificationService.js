@@ -22,6 +22,9 @@ const getEmailTransporter = (forceSsl = false) => {
     port,
     secure: port === 465,
     auth: { user, pass },
+    connectionTimeout: 4000,
+    greetingTimeout: 3000,
+    socketTimeout: 5000,
     tls: {
       rejectUnauthorized: false
     }
