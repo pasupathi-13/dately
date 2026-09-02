@@ -115,15 +115,33 @@ export function DatelyProvider({ children }) {
     navigateTo('landing');
   };
 
-  // Intercept Google OAuth redirection token on startup
+  // Intercept Google OAuth redirection token & query parameters on startup
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
       const urlToken = params.get('token');
+      const googleStatus = params.get('google');
+
       if (urlToken && urlToken.split('.').length === 3) {
         localStorage.setItem('dately_token', urlToken);
         setToken(urlToken);
-        // Clean up search parameters from browser URL
+      }
+
+      if (googleStatus === 'connected') {
+        showToast('Google Drive connected successfully!', 'success');
+        navigateTo('settings');
+      } else if (googleStatus === 'error') {
+        showToast('Failed to link Google Drive. Please try again.', 'danger');
+        navigateTo('settings');
+      }
+
+      // Check pathname for direct SPA routing
+      const path = window.location.pathname.replace(/^\/+|\/+$/g, '');
+      if (path && ['dashboard', 'documents', 'obligations', 'settings', 'upload', 'todos', 'calendar', 'help', 'notifications', 'profile'].includes(path)) {
+        navigateTo(path);
+      }
+
+      if (urlToken || googleStatus) {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
     } catch {}
