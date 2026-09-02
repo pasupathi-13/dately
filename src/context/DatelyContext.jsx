@@ -121,15 +121,37 @@ export function DatelyProvider({ children }) {
       const params = new URLSearchParams(window.location.search);
       const urlToken = params.get('token');
       const googleStatus = params.get('google');
+      const pageParam = params.get('page');
 
       if (urlToken && urlToken.split('.').length === 3) {
         localStorage.setItem('dately_token', urlToken);
         setToken(urlToken);
       }
 
+      if (pageParam && ['dashboard', 'documents', 'obligations', 'settings', 'upload', 'todos', 'calendar', 'help', 'notifications', 'profile', 'login', 'onboarding'].includes(pageParam)) {
+        navigateTo(pageParam);
+      }
+
       if (googleStatus === 'connected') {
         showToast('Google Drive connected successfully!', 'success');
         navigateTo('settings');
+        // Refresh profile from backend to show active connected status
+        setTimeout(async () => {
+          try {
+            const activeToken = urlToken || localStorage.getItem('dately_token');
+            if (activeToken) {
+              const res = await fetch(`${API_URL}/auth/profile`, {
+                headers: { 'Authorization': `Bearer ${activeToken}` }
+              });
+              if (res.ok) {
+                const freshProfile = await res.json();
+                if (freshProfile && freshProfile._id) {
+                  setUserProfile(freshProfile);
+                }
+              }
+            }
+          } catch {}
+        }, 300);
       } else if (googleStatus === 'error') {
         showToast('Failed to link Google Drive. Please try again.', 'danger');
         navigateTo('settings');
@@ -141,7 +163,7 @@ export function DatelyProvider({ children }) {
         navigateTo(path);
       }
 
-      if (urlToken || googleStatus) {
+      if (urlToken || googleStatus || pageParam) {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
     } catch {}

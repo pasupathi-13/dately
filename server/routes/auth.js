@@ -607,8 +607,8 @@ router.get('/google/callback', async (req, res) => {
 
       const clientOrigin = getFrontendBaseUrl(req);
       const jwtToken = generateToken(userId);
-      const redirectBase = isNewUser ? `${clientOrigin}/onboarding` : `${clientOrigin}/dashboard`;
-      return res.redirect(`${redirectBase}?token=${jwtToken}`);
+      const targetPage = isNewUser ? 'onboarding' : 'dashboard';
+      return res.redirect(`${clientOrigin}/?page=${targetPage}&token=${jwtToken}`);
     }
 
     // 2. Google Drive Storage Link Flow (User was already logged in)
@@ -635,14 +635,14 @@ router.get('/google/callback', async (req, res) => {
     });
 
     const clientOrigin = getFrontendBaseUrl(req);
-    res.redirect(`${clientOrigin}/settings?google=connected`);
+    res.redirect(`${clientOrigin}/?google=connected`);
   } catch (err) {
     console.error('Google OAuth callback error:', err.message);
     const clientOrigin = getFrontendBaseUrl(req);
     if (state === 'google-login') {
-      res.redirect(`${clientOrigin}/login?google=error`);
+      res.redirect(`${clientOrigin}/?google=error&page=login`);
     } else {
-      res.redirect(`${clientOrigin}/settings?google=error`);
+      res.redirect(`${clientOrigin}/?google=error&page=settings`);
     }
   }
 });
