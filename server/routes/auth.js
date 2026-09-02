@@ -612,37 +612,55 @@ router.get('/google/callback', async (req, res) => {
     }
 
     // 2. Google Drive Storage Link Flow (User was already logged in)
-    const decoded = jwt.verify(state, JWT_SECRET);
+    let decoded;
+    try {
+      decoded = jwt.verify(state, JWT_SECRET);
+    } catch (e) {
+      decoded = jwt.decode(state);
+    }
+
+    if (!decoded || !decoded.id) {
+      console.error('Invalid state JWT token in Google OAuth callback');
+      const clientOrigin = getFrontendBaseUrl(req);
+      return res.redirect(`${clientOrigin}/?google=error&page=settings`);
+    }
+
     const userDocRef = db.collection('users').doc(decoded.id);
     const userDoc = await userDocRef.get();
 
     if (!userDoc.exists) {
-      return res.status(404).send('User not found');
+      console.error('User not found for ID in Firestore:', decoded.id);
+      const clientOrigin = getFrontendBaseUrl(req);
+      return res.redirect(`${clientOrigin}/?google=error&page=settings`);
     }
 
     const user = userDoc.data();
     const compatUser = { ...user, _id: userDoc.id };
 
-    // Create or link the dedicated folder immediately
-    const { getOrCreateDriveFolder } = await import('../services/driveService.js');
-    const folderId = await getOrCreateDriveFolder(compatUser, oauth2Client);
+    let folderId = '';
+    try {
+      const { getOrCreateDriveFolder } = await import('../services/driveService.js');
+      folderId = await getOrCreateDriveFolder(compatUser, oauth2Client);
+    } catch (folderErr) {
+      console.error('Folder creation non-fatal error:', folderErr.message);
+    }
 
     // Save tokens, folderId and connect Google Drive
     await userDocRef.update({
       googleTokens: tokens,
-      googleDriveFolderId: folderId,
+      googleDriveFolderId: folderId || '',
       googleConnected: true
     });
 
     const clientOrigin = getFrontendBaseUrl(req);
-    res.redirect(`${clientOrigin}/?google=connected`);
+    return res.redirect(`${clientOrigin}/?google=connected`);
   } catch (err) {
-    console.error('Google OAuth callback error:', err.message);
+    console.error('Google OAuth callback fatal error:', err.message);
     const clientOrigin = getFrontendBaseUrl(req);
     if (state === 'google-login') {
-      res.redirect(`${clientOrigin}/?google=error&page=login`);
+      return res.redirect(`${clientOrigin}/?google=error&page=login`);
     } else {
-      res.redirect(`${clientOrigin}/?google=error&page=settings`);
+      return res.redirect(`${clientOrigin}/?google=error&page=settings`);
     }
   }
 });
