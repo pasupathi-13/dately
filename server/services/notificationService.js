@@ -244,8 +244,14 @@ export const scanAndSendReminders = async () => {
         }
       }
 
-      // 3. Scan User Reminders (To-Do List tasks)
+      // 3. Scan User Reminders (To-Do List tasks with exact time support)
       const remindersSnapshot = await db.collection('reminders').get();
+      
+      // Calculate current date and time in IST (Asia/Kolkata)
+      const now = new Date();
+      const istDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now); // YYYY-MM-DD
+      const istTimeStr = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }).format(now); // HH:MM
+
       for (const remDoc of remindersSnapshot.docs) {
         const rem = remDoc.data();
         const remUserId = rem.userId || rem.user;
@@ -263,26 +269,52 @@ export const scanAndSendReminders = async () => {
 
         let subject = '';
         let message = '';
+        let notificationKey = '';
 
-        if (daysLeft === 3) {
-          subject = `⏰ Reminder: "${rem.name}" is coming up in 3 days`;
-          message = `Dately Reminder: You have an upcoming task on ${rem.dueDate}: "${rem.name}"${rem.time ? ` at ${rem.time}` : ''}.${rem.notes ? `\nNotes: ${rem.notes}` : ''}`;
+        if (rem.dueDate === istDateStr) {
+          // Task is due TODAY
+          if (rem.time) {
+            // Task has a specific scheduled time (e.g. "16:45")
+            if (istTimeStr >= rem.time && rem.lastNotifiedDate !== istDateStr) {
+              subject = `🚨 Task Due Now: "${rem.name}" (${rem.time})`;
+              message = `Dately Task Alert: Your scheduled task "${rem.name}" is due now at ${rem.time}.${rem.notes ? `\nNotes: ${rem.notes}` : ''}`;
+              notificationKey = istDateStr;
+            }
+          } else {
+            // No specific time, send morning/day reminder once
+            if (rem.lastNotifiedDate !== istDateStr) {
+              subject = `🚨 Urgent Reminder: "${rem.name}" is scheduled for TODAY!`;
+              message = `Dately Task Alert: Your scheduled task "${rem.name}" is active today (${rem.dueDate}).${rem.notes ? `\nNotes: ${rem.notes}` : ''}`;
+              notificationKey = istDateStr;
+            }
+          }
         } else if (daysLeft === 1) {
-          subject = `⏰ Reminder: "${rem.name}" is scheduled for tomorrow`;
-          message = `Dately Reminder: You have a scheduled task tomorrow (${rem.dueDate}): "${rem.name}"${rem.time ? ` at ${rem.time}` : ''}.${rem.notes ? `\nNotes: ${rem.notes}` : ''}`;
-        } else if (daysLeft === 0) {
-          subject = `🚨 Urgent Reminder: "${rem.name}" is scheduled for TODAY!`;
-          message = `Dately Task Alert: Your scheduled task "${rem.name}" is active today (${rem.dueDate})${rem.time ? ` at ${rem.time}` : ''}.${rem.notes ? `\nNotes: ${rem.notes}` : ''}`;
+          const key = `${istDateStr}_1d`;
+          if (rem.lastNotifiedDate !== key) {
+            subject = `⏰ Reminder: "${rem.name}" is scheduled for tomorrow`;
+            message = `Dately Reminder: You have a scheduled task tomorrow (${rem.dueDate}): "${rem.name}"${rem.time ? ` at ${rem.time}` : ''}.${rem.notes ? `\nNotes: ${rem.notes}` : ''}`;
+            notificationKey = key;
+          }
+        } else if (daysLeft === 3) {
+          const key = `${istDateStr}_3d`;
+          if (rem.lastNotifiedDate !== key) {
+            subject = `⏰ Reminder: "${rem.name}" is coming up in 3 days`;
+            message = `Dately Reminder: You have an upcoming task on ${rem.dueDate}: "${rem.name}"${rem.time ? ` at ${rem.time}` : ''}.${rem.notes ? `\nNotes: ${rem.notes}` : ''}`;
+            notificationKey = key;
+          }
         }
 
-        if (subject) {
+        if (subject && notificationKey) {
           await dispatchNotification(user, subject, message);
+          await remDoc.ref.update({ lastNotifiedDate: notificationKey }).catch(() => {});
           totalNotificationsSent++;
         }
       }
     }
 
-    console.log(`--- REMINDER SCANNER COMPLETED: ${totalNotificationsSent} notifications evaluated/sent ---`);
+    if (totalNotificationsSent > 0) {
+      console.log(`--- REMINDER SCANNER: Dispatched ${totalNotificationsSent} alerts ---`);
+    }
     return totalNotificationsSent;
   } catch (err) {
     console.error('Reminder Scanner failed with error:', err.message);

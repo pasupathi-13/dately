@@ -57,15 +57,15 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
   
-  // Start background notification scanner (every 24 hours)
-  const DAILY_INTERVAL = 24 * 60 * 60 * 1000;
+  // Start background notification & task time scanner (runs every 60 seconds for minute-level precision)
+  const SCAN_INTERVAL = 60 * 1000;
   setInterval(async () => {
     try {
       await scanAndSendReminders();
     } catch (err) {
-      console.error('Daily reminder scan failed:', err.message);
+      console.error('Scheduled reminder scan failed:', err.message);
     }
-  }, DAILY_INTERVAL);
+  }, SCAN_INTERVAL);
 
   // Run an initial scan 5 seconds after server boot
   setTimeout(async () => {
