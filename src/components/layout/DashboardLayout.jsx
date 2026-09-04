@@ -47,6 +47,7 @@ export default function DashboardLayout({ children }) {
     markAllNotificationsRead,
     currentPage,
     navigateTo,
+    handleLogout,
     t
   } = useDately();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -70,13 +71,10 @@ export default function DashboardLayout({ children }) {
       navigateTo("dashboard", { search: searchQuery });
     }
   };
-  const handleLogout = () => {
-    navigateTo("landing");
-  };
-  const userName = userProfile?.name || "Pasupathi A T";
-  const userEmail = userProfile?.email || "atpasupathi77@gmail.com";
+  const userName = userProfile?.name || "User";
+  const userEmail = userProfile?.email || "";
   const getInitials = (name) => {
-    if (!name) return "PA";
+    if (!name || name === "User") return "U";
     return name.split(" ").map((n) => n[0]).join("").toUpperCase().substring(0, 2);
   };
   const SidebarContent = () => <div className="flex flex-col h-full bg-dately-primary text-white">{
