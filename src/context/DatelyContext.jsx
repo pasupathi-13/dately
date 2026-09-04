@@ -265,7 +265,7 @@ export function DatelyProvider({ children }) {
           }
         }
       } catch (err) {
-        console.warn('Backend unavailable or request timed out, using local mock data:', err);
+        console.error('Error loading cloud data:', err.message);
       } finally {
         if (!isCancelled) {
           setIsLoaded(true);
@@ -278,6 +278,22 @@ export function DatelyProvider({ children }) {
     return () => {
       isCancelled = true;
     };
+  }, [token]);
+
+  // Live Active Scheduler Heartbeat (keeps Render awake & triggers minute-precision task scans)
+  useEffect(() => {
+    if (!token || token.split('.').length !== 3) return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        await fetch(`${API_URL}/notifications/trigger`, {
+          method: 'POST',
+          headers: getAuthHeaders()
+        });
+      } catch {}
+    }, 30000);
+
+    return () => clearInterval(intervalId);
   }, [token]);
 
   const handleLogin = async (email, password) => {
