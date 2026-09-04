@@ -67,17 +67,6 @@ export default function SignUpPage() {
     if (!validateForm()) return;
     setIsSubmitting(true);
     try {
-      await handleDirectRegister(formData.name, formData.email, formData.phone, formData.password);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleOtpFlow = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-    setIsSubmitting(true);
-    try {
       await handleSignUp(formData.name, formData.email, formData.phone, formData.password);
     } finally {
       setIsSubmitting(false);
@@ -165,17 +154,7 @@ export default function SignUpPage() {
 
           <div className="space-y-2 pt-2">
             <Button type="submit" variant="primary" fullWidth disabled={isSubmitting} className="py-2.5 shadow-md font-bold">
-              {isSubmitting ? "Creating Account..." : "Create Account & Sign In"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              fullWidth
-              disabled={isSubmitting}
-              onClick={handleOtpFlow}
-              className="py-2 text-xs font-semibold text-dately-slate hover:text-dately-navy"
-            >
-              Verify Email with OTP Code
+              {isSubmitting ? "Sending Verification Code..." : "Create Account & Verify Email"}
             </Button>
           </div>
         </form><div className="relative my-6 text-center"><span className="absolute inset-x-0 top-1/2 border-t border-dately-border" /><span className="relative bg-white px-3 text-xs text-dately-slate uppercase tracking-wider font-semibold">
