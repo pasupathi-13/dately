@@ -311,7 +311,7 @@ export function DatelyProvider({ children }) {
       const res = await fetch(`${API_URL}/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, phone }),
+        body: JSON.stringify({ email, phone, channel: 'both' }),
       });
 
       const data = await res.json();
@@ -326,7 +326,7 @@ export function DatelyProvider({ children }) {
       } catch {}
       setTempSignupData(signupObj);
 
-      showToast(`Verification code sent to ${email}. Please check your inbox!`, 'success');
+      showToast(`Verification code sent to ${email} & WhatsApp!`, 'success');
       navigateTo('otp'); // Redirect to verification screen
       return { success: true };
     } catch (err) {
@@ -415,7 +415,7 @@ export function DatelyProvider({ children }) {
     }
   };
 
-  const handleResendOtp = async () => {
+  const handleResendOtp = async (channel = 'both') => {
     try {
       if (!tempSignupData) {
         throw new Error('No pending registration details found. Please go back and sign up again.');
@@ -424,7 +424,11 @@ export function DatelyProvider({ children }) {
       const res = await fetch(`${API_URL}/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: tempSignupData.email, phone: tempSignupData.phone }),
+        body: JSON.stringify({
+          email: tempSignupData.email,
+          phone: tempSignupData.phone,
+          channel
+        }),
       });
 
       const data = await res.json();
@@ -433,7 +437,8 @@ export function DatelyProvider({ children }) {
         throw new Error(data.message || 'Failed to resend verification code');
       }
 
-      showToast('New verification code sent to your email inbox!', 'success');
+      const channelText = channel === 'email' ? 'email inbox' : channel === 'whatsapp' ? 'WhatsApp chat' : 'email & WhatsApp';
+      showToast(`New verification code sent to your ${channelText}!`, 'success');
       return { success: true };
     } catch (err) {
       showToast(err.message, 'danger');

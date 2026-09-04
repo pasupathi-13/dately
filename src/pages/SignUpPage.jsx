@@ -154,7 +154,7 @@ export default function SignUpPage() {
 
           <div className="space-y-2 pt-2">
             <Button type="submit" variant="primary" fullWidth disabled={isSubmitting} className="py-2.5 shadow-md font-bold">
-              {isSubmitting ? "Sending Verification Code..." : "Create Account & Verify Email"}
+              {isSubmitting ? "Sending Security Code..." : "Create Account & Get Verification Code"}
             </Button>
           </div>
         </form><div className="relative my-6 text-center"><span className="absolute inset-x-0 top-1/2 border-t border-dately-border" /><span className="relative bg-white px-3 text-xs text-dately-slate uppercase tracking-wider font-semibold">

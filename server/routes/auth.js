@@ -105,68 +105,103 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// @desc    Generate and send OTP via Email
+// @desc    Generate and send OTP via Email & WhatsApp
 // @route   POST /api/auth/send-otp
 // @access  Public
 router.post('/send-otp', async (req, res) => {
-  const { email, phone } = req.body;
+  const { email, phone, channel } = req.body;
   const targetEmail = (email || '').trim().toLowerCase();
+  const targetPhone = (phone || '').trim();
 
-  if (!targetEmail) {
-    return res.status(400).json({ message: 'Email address is required for verification' });
+  if (!targetEmail && !targetPhone) {
+    return res.status(400).json({ message: 'Email address or mobile number is required for verification' });
   }
 
   try {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
 
-    await db.collection('otps').doc(targetEmail).set({
+    const otpRecord = {
       otp,
-      email: targetEmail,
-      phone: phone || '',
+      email: targetEmail || '',
+      phone: targetPhone || '',
       expiresAt
-    });
+    };
 
-    // Send email in background (non-blocking for instant UI response)
-    (async () => {
-      try {
-        const { dispatchNotification } = await import('../services/notificationService.js');
-        const subject = `🔐 Your Dately Verification Code: ${otp}`;
-        const otpMessage = `Hello,\n\nYour 6-digit Dately security verification code is: ${otp}\n\nThis code will expire in 10 minutes. Please enter it to complete your account verification.\n\nBest regards,\nThe Dately Team`;
-        
-        const otpUser = {
-          email: targetEmail,
-          name: 'User',
-          notificationPreferences: { email: true, sms: false }
-        };
-        
-        await dispatchNotification(otpUser, subject, otpMessage);
-        console.log(`[EMAIL OTP SENT SUCCESS] To: ${targetEmail} | Code: ${otp}`);
-      } catch (err) {
-        console.error('Email transporter background error:', err.message);
+    // Store OTP under email doc
+    if (targetEmail) {
+      await db.collection('otps').doc(targetEmail).set(otpRecord);
+    }
+
+    // Store OTP under normalized phone doc
+    if (targetPhone) {
+      const cleanPhone = targetPhone.replace(/[^0-9]/g, '');
+      if (cleanPhone) {
+        await db.collection('otps').doc(cleanPhone).set(otpRecord);
       }
-    })();
+    }
+
+    const deliveryChannels = [];
+
+    // 1. Send Email OTP in background (non-blocking)
+    if (targetEmail && (!channel || channel === 'email' || channel === 'both')) {
+      deliveryChannels.push('Email');
+      (async () => {
+        try {
+          const { dispatchNotification } = await import('../services/notificationService.js');
+          const subject = `🔐 Your Dately Verification Code: ${otp}`;
+          const otpMessage = `Hello,\n\nYour 6-digit Dately security verification code is: ${otp}\n\nThis code will expire in 10 minutes. Please enter it to complete your account verification.\n\nBest regards,\nThe Dately Team`;
+          
+          const otpUser = {
+            email: targetEmail,
+            name: 'User',
+            notificationPreferences: { email: true, sms: false }
+          };
+          
+          await dispatchNotification(otpUser, subject, otpMessage);
+          console.log(`[EMAIL OTP SENT SUCCESS] To: ${targetEmail} | Code: ${otp}`);
+        } catch (err) {
+          console.error('Email OTP background error:', err.message);
+        }
+      })();
+    }
+
+    // 2. Send WhatsApp OTP in background (non-blocking)
+    if (targetPhone && (!channel || channel === 'whatsapp' || channel === 'both')) {
+      deliveryChannels.push('WhatsApp');
+      (async () => {
+        try {
+          const { sendWhatsAppOtp } = await import('../services/whatsappCloudService.js');
+          await sendWhatsAppOtp(targetPhone, otp);
+          console.log(`[WHATSAPP OTP SENT SUCCESS] To: ${targetPhone} | Code: ${otp}`);
+        } catch (waErr) {
+          console.error('WhatsApp OTP background error:', waErr.message);
+        }
+      })();
+    }
 
     res.json({
       success: true,
-      message: 'Verification code sent to your email address.',
-      email: targetEmail
+      message: `Verification code sent to ${deliveryChannels.join(' and ')}.`,
+      email: targetEmail,
+      phone: targetPhone,
+      channels: deliveryChannels
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-// @desc    Verify OTP code
+// @desc    Verify OTP code (Email or WhatsApp)
 // @route   POST /api/auth/verify-otp
 // @access  Public
 router.post('/verify-otp', async (req, res) => {
   const { email, phone, otp } = req.body;
   const targetEmail = (email || '').trim().toLowerCase();
-  const targetPhone = phone ? phone.replace('+', '').replace(/\s/g, '') : '';
+  const cleanPhone = phone ? String(phone).replace(/[^0-9]/g, '') : '';
 
-  if (!otp || (!targetEmail && !targetPhone)) {
-    return res.status(400).json({ message: 'Email and verification code are required' });
+  if (!otp || (!targetEmail && !cleanPhone)) {
+    return res.status(400).json({ message: 'Email or mobile number and verification code are required' });
   }
 
   try {
@@ -174,8 +209,8 @@ router.post('/verify-otp', async (req, res) => {
     if (targetEmail) {
       otpDoc = await db.collection('otps').doc(targetEmail).get();
     }
-    if ((!otpDoc || !otpDoc.exists) && targetPhone) {
-      otpDoc = await db.collection('otps').doc(targetPhone).get();
+    if ((!otpDoc || !otpDoc.exists) && cleanPhone) {
+      otpDoc = await db.collection('otps').doc(cleanPhone).get();
     }
 
     if (!otpDoc || !otpDoc.exists) {
@@ -185,7 +220,8 @@ router.post('/verify-otp', async (req, res) => {
     const storedOtp = otpDoc.data();
 
     if (new Date() > new Date(storedOtp.expiresAt)) {
-      await db.collection('otps').doc(otpDoc.id).delete();
+      if (targetEmail) await db.collection('otps').doc(targetEmail).delete().catch(() => {});
+      if (cleanPhone) await db.collection('otps').doc(cleanPhone).delete().catch(() => {});
       return res.status(400).json({ message: 'Verification code has expired. Please request a new one.' });
     }
 
@@ -193,9 +229,16 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(400).json({ message: 'Incorrect verification code' });
     }
 
-    await db.collection('otps').doc(otpDoc.id).delete();
+    // Clean up stored OTP docs on success
+    if (targetEmail) await db.collection('otps').doc(targetEmail).delete().catch(() => {});
+    if (cleanPhone) await db.collection('otps').doc(cleanPhone).delete().catch(() => {});
+    if (storedOtp.email) await db.collection('otps').doc(storedOtp.email).delete().catch(() => {});
+    if (storedOtp.phone) {
+      const storedCleanPhone = String(storedOtp.phone).replace(/[^0-9]/g, '');
+      if (storedCleanPhone) await db.collection('otps').doc(storedCleanPhone).delete().catch(() => {});
+    }
 
-    res.json({ success: true, message: 'Email verified successfully.' });
+    res.json({ success: true, message: 'Identity verified successfully.' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

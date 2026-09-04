@@ -137,6 +137,17 @@ export const dispatchNotification = async (user, subject, message) => {
       console.log('================================================================\n');
     }
   }
+
+  // 2. Send WhatsApp Notification (Meta WhatsApp Cloud API)
+  if (user.phone && user.phone !== 'N/A') {
+    try {
+      const { sendWhatsAppMessage } = await import('./whatsappCloudService.js');
+      const whatsappText = `📢 *${subject}*\n\n${message}\n\n👉 *Manage in Dately:* https://dately-ten.vercel.app`;
+      await sendWhatsAppMessage(user.phone, whatsappText);
+    } catch (waErr) {
+      console.error('WhatsApp notification dispatch error:', waErr.message);
+    }
+  }
 };
 
 /**

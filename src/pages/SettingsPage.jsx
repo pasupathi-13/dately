@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { User, Bell, Shield, Save, Trash2, AlertTriangle, RefreshCw, HardDrive, CheckCircle2 } from "lucide-react";
+import { User, Bell, Shield, Save, Trash2, AlertTriangle, RefreshCw, HardDrive, CheckCircle2, MessageSquare, Play, Send } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useDately } from "@/context/DatelyContext";
 import Button from "@/components/ui/Button";
@@ -385,7 +385,7 @@ export default function SettingsPage() {
                   )}
                 </div>
 
-                {/* Manual Reminder Trigger Card */}
+                {/* Dual-Channel Notification Gateway Card */}
                 <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-4">
                   <div className="flex items-center space-x-3 pb-3 border-b border-slate-100">
                     <div className="w-10 h-10 bg-dately-primary/10 rounded-lg flex items-center justify-center text-dately-primary">
@@ -393,18 +393,36 @@ export default function SettingsPage() {
                     </div>
                     <div>
                       <h3 className="font-extrabold text-slate-900 text-base font-sans">
-                        {t('settings_gateway_header')}
+                        Dual Notification Gateway (Email & WhatsApp)
                       </h3>
                       <p className="text-sm text-slate-700 font-medium mt-0.5">
-                        {t('settings_gateway_desc')}
+                        Automated alerts sent via Brevo HTTPS REST Email and Meta WhatsApp Cloud API.
                       </p>
                     </div>
                   </div>
+
                   <div className="space-y-4 font-sans text-sm text-slate-800 leading-relaxed font-medium">
-                    <p>
-                      {t('settings_gateway_help')}
+                    <p className="text-xs text-slate-600">
+                      Dately automatically scans your documents and tasks every day. When an expiry is 30 days, 7 days, 1 day, or today, you will receive real-time notifications on both channels without exposing your personal phone number.
                     </p>
-                    <div className="flex flex-wrap gap-3">
+
+                    <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-700 flex items-center">
+                          <span className="w-2 h-2 rounded-full bg-blue-500 mr-2"></span> Email Channel:
+                        </span>
+                        <span className="font-semibold text-slate-900">{userProfile?.email || "Configured"}</span>
+                      </div>
+                      <div className="flex items-center justify-between pt-1 border-t border-slate-200">
+                        <span className="font-bold text-slate-700 flex items-center">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2"></span> WhatsApp Channel:
+                        </span>
+                        <span className="font-semibold text-emerald-800">{userProfile?.phone || "Configured"}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2.5 pt-1">
+                      {/* Test Email Button */}
                       <Button
                         type="button"
                         variant="outline"
@@ -427,9 +445,69 @@ export default function SettingsPage() {
                             showToast(err.message, "danger");
                           }
                         }}
-                        className="font-semibold text-sm cursor-pointer"
+                        className="font-semibold text-xs cursor-pointer py-2 px-3 flex items-center"
                       >
-                        {t('settings_test_email')}
+                        <Send className="w-3.5 h-3.5 mr-1.5 text-blue-600" />
+                        <span>Send Test Email</span>
+                      </Button>
+
+                      {/* Test WhatsApp Button */}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(`${API_URL}/notifications/test-whatsapp`, {
+                              method: "POST",
+                              headers: {
+                                ...getAuthHeaders(),
+                                "Content-Type": "application/json"
+                              },
+                              body: JSON.stringify({ phone: userProfile?.phone })
+                            });
+                            const data = await res.json();
+                            if (res.ok) {
+                              showToast(`Test WhatsApp message dispatched to ${data.recipient || userProfile?.phone}!`, "success");
+                            } else {
+                              showToast(data.message || "Failed to send test WhatsApp message.", "danger");
+                            }
+                          } catch (err) {
+                            showToast(err.message, "danger");
+                          }
+                        }}
+                        className="font-semibold text-xs cursor-pointer py-2 px-3 border-emerald-200 text-emerald-800 hover:bg-emerald-50 flex items-center"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />
+                        <span>Send Test WhatsApp</span>
+                      </Button>
+
+                      {/* Run Scanner Button */}
+                      <Button
+                        type="button"
+                        variant="primary"
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(`${API_URL}/notifications/trigger`, {
+                              method: "POST",
+                              headers: {
+                                ...getAuthHeaders(),
+                                "Content-Type": "application/json"
+                              }
+                            });
+                            const data = await res.json();
+                            if (res.ok) {
+                              showToast(`Scanner loop completed! ${data.notificationsSent || 0} reminders processed.`, "success");
+                            } else {
+                              showToast(data.message || "Failed to run reminder scan.", "danger");
+                            }
+                          } catch (err) {
+                            showToast(err.message, "danger");
+                          }
+                        }}
+                        className="font-semibold text-xs cursor-pointer py-2 px-3 shadow-sm flex items-center"
+                      >
+                        <Play className="w-3.5 h-3.5 mr-1.5" />
+                        <span>Run Expiry Scanner Now</span>
                       </Button>
                     </div>
                   </div>

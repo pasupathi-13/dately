@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Mail, ArrowLeft, RefreshCw, KeyRound, CheckCircle2 } from "lucide-react";
+import { Mail, ArrowLeft, RefreshCw, MessageSquare, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useDately } from "@/context/DatelyContext";
 
@@ -8,6 +8,7 @@ export default function OtpPage() {
   const [otp, setOtp] = useState(new Array(6).fill(""));
   const [countdown, setCountdown] = useState(30);
   const [canResend, setCanResend] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const inputRefs = useRef([]);
 
   useEffect(() => {
@@ -59,16 +60,21 @@ export default function OtpPage() {
     await handleVerifyOtp(code);
   };
 
-  const handleResend = async () => {
-    if (!canResend) return;
-    const res = await handleResendOtp();
-    if (res && res.success) {
-      setOtp(new Array(6).fill(""));
-      setCountdown(30);
-      setCanResend(false);
-      if (inputRefs.current[0]) {
-        inputRefs.current[0].focus();
+  const triggerResend = async (channel = 'both') => {
+    if (!canResend || isResending) return;
+    setIsResending(true);
+    try {
+      const res = await handleResendOtp(channel);
+      if (res && res.success) {
+        setOtp(new Array(6).fill(""));
+        setCountdown(30);
+        setCanResend(false);
+        if (inputRefs.current[0]) {
+          inputRefs.current[0].focus();
+        }
       }
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -92,14 +98,35 @@ export default function OtpPage() {
         </button>
 
         <div className="text-center mb-6">
-          <div className="w-12 h-12 bg-dately-primary/10 rounded-full flex items-center justify-center text-dately-primary mx-auto mb-4">
-            <Mail className="w-6 h-6" />
+          <div className="w-14 h-14 bg-gradient-to-tr from-blue-100 to-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-blue-200/60 shadow-sm">
+            <div className="flex items-center space-x-1">
+              <Mail className="w-5 h-5 text-blue-600" />
+              <MessageSquare className="w-5 h-5 text-emerald-600" />
+            </div>
           </div>
-          <h2 className="text-xl font-extrabold text-dately-navy">Verify Your Email Address</h2>
-          <p className="text-sm text-dately-slate mt-1.5 leading-relaxed">
-            Please enter the 6-digit verification code sent to:<br />
-            <span className="font-bold text-dately-navy">{tempSignupData?.email || "your email address"}</span>
+          <h2 className="text-xl font-extrabold text-dately-navy">Security Code Verification</h2>
+          <p className="text-xs text-dately-slate mt-1.5 leading-relaxed">
+            We have dispatched your 6-digit security code to:
           </p>
+
+          <div className="mt-3 space-y-1.5 bg-slate-50 p-3 rounded-xl border border-slate-200/80 text-left">
+            {tempSignupData?.email && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="flex items-center font-bold text-slate-700">
+                  <Mail className="w-3.5 h-3.5 mr-1.5 text-blue-600" /> Email:
+                </span>
+                <span className="font-bold text-dately-navy">{tempSignupData.email}</span>
+              </div>
+            )}
+            {tempSignupData?.phone && (
+              <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200">
+                <span className="flex items-center font-bold text-slate-700">
+                  <MessageSquare className="w-3.5 h-3.5 mr-1.5 text-emerald-600" /> WhatsApp:
+                </span>
+                <span className="font-bold text-emerald-800">{tempSignupData.phone}</span>
+              </div>
+            )}
+          </div>
         </div>
 
         <form onSubmit={handleVerify} className="space-y-6">
@@ -122,14 +149,15 @@ export default function OtpPage() {
           </div>
 
           <Button type="submit" variant="primary" fullWidth className="py-2.5 shadow-md font-bold">
-            Verify & Proceed
+            <ShieldCheck className="w-4 h-4 mr-1.5" />
+            Verify & Create Account
           </Button>
         </form>
 
         <div className="text-center mt-6 space-y-3">
           <p className="text-xs text-dately-slate font-medium">
             {canResend ? (
-              <span>Didn&apos;t receive the code?</span>
+              <span>Didn&apos;t receive the verification code?</span>
             ) : (
               <span>
                 Resend code available in{" "}
@@ -141,13 +169,27 @@ export default function OtpPage() {
           </p>
 
           {canResend && (
-            <button
-              onClick={handleResend}
-              className="inline-flex items-center text-xs text-dately-primary hover:underline font-extrabold bg-transparent border-0 cursor-pointer"
-            >
-              <RefreshCw className="w-3.5 h-3.5 mr-1" />
-              <span>Resend Verification Code</span>
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => triggerResend('both')}
+                disabled={isResending}
+                className="inline-flex items-center text-xs text-dately-primary hover:underline font-extrabold bg-transparent border-0 cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 mr-1 ${isResending ? 'animate-spin' : ''}`} />
+                <span>Resend Code</span>
+              </button>
+              <span className="text-slate-300">|</span>
+              <button
+                type="button"
+                onClick={() => triggerResend('whatsapp')}
+                disabled={isResending}
+                className="inline-flex items-center text-xs text-emerald-700 hover:underline font-extrabold bg-transparent border-0 cursor-pointer disabled:opacity-50"
+              >
+                <MessageSquare className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                <span>Resend via WhatsApp</span>
+              </button>
+            </div>
           )}
         </div>
       </div>
