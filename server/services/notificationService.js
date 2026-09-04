@@ -193,10 +193,12 @@ export const scanAndSendReminders = async () => {
         }
       }
 
-      // 2. Scan User Obligations (Rent, Bills) - filter status completed in JS to avoid creating indexes
-      const obsSnapshot = await db.collection('obligations').where('user', '==', user._id).get();
+      // 2. Scan User Obligations (Rent, Bills)
+      const obsSnapshot = await db.collection('obligations').get();
       for (const obDoc of obsSnapshot.docs) {
         const ob = obDoc.data();
+        const obUserId = ob.user || ob.userId;
+        if (obUserId !== user._id) continue;
         if (ob.status === 'Completed' || !ob.dueDate) continue;
 
         // Calculate days difference
@@ -232,9 +234,11 @@ export const scanAndSendReminders = async () => {
       }
 
       // 3. Scan User Reminders (To-Do List tasks)
-      const remindersSnapshot = await db.collection('reminders').where('userId', '==', user._id).get();
+      const remindersSnapshot = await db.collection('reminders').get();
       for (const remDoc of remindersSnapshot.docs) {
         const rem = remDoc.data();
+        const remUserId = rem.userId || rem.user;
+        if (remUserId !== user._id) continue;
         if (rem.status === 'Completed' || !rem.dueDate) continue;
 
         // Calculate days difference
@@ -249,7 +253,10 @@ export const scanAndSendReminders = async () => {
         let subject = '';
         let message = '';
 
-        if (daysLeft === 1) {
+        if (daysLeft === 3) {
+          subject = `⏰ Reminder: "${rem.name}" is coming up in 3 days`;
+          message = `Dately Reminder: You have an upcoming task on ${rem.dueDate}: "${rem.name}"${rem.time ? ` at ${rem.time}` : ''}.${rem.notes ? `\nNotes: ${rem.notes}` : ''}`;
+        } else if (daysLeft === 1) {
           subject = `⏰ Reminder: "${rem.name}" is scheduled for tomorrow`;
           message = `Dately Reminder: You have a scheduled task tomorrow (${rem.dueDate}): "${rem.name}"${rem.time ? ` at ${rem.time}` : ''}.${rem.notes ? `\nNotes: ${rem.notes}` : ''}`;
         } else if (daysLeft === 0) {
