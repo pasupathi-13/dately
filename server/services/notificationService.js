@@ -76,10 +76,12 @@ const getEmailTransporter = (forceSsl = false) => {
 export const dispatchNotification = async (user, subject, message) => {
   const prefs = user.notificationPreferences || { email: true, sms: false };
   const userEmail = user.email;
+  const userPhone = user.phone;
 
-  // Send Email Notification
+  const tasks = [];
+
+  // 1. Send Email Notification (Brevo HTTPS REST API)
   if (prefs.email && userEmail) {
-    const smtpSender = process.env.SMTP_USER || 'atpasupathi77@gmail.com';
     const htmlBody = `
       <div style="font-family: Arial, sans-serif; padding: 20px; color: #1e293b; background: #f8fafc; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0;">
         <h2 style="color: #0f172a; border-bottom: 2px solid #0284c7; padding-bottom: 10px;">Dately Renewal Notification</h2>
@@ -92,62 +94,51 @@ export const dispatchNotification = async (user, subject, message) => {
       </div>
     `;
 
-    // 1. First Priority: Brevo HTTPS REST API (Port 443 - Never blocked on Render)
-    if (process.env.BREVO_API_KEY) {
-      try {
-        const sent = await sendViaBrevoHttpApi(userEmail, user.name, subject, message, htmlBody);
-        if (sent) return;
-      } catch (brevoErr) {
-        console.error('Brevo HTTPS API delivery error:', brevoErr.message);
-      }
-    }
-
-    // 2. Second Priority: Direct Nodemailer SMTP
-    let transporter = getEmailTransporter(false);
-    
-    if (transporter) {
-      const mailOptions = {
-        from: `"Dately Assistant" <${smtpSender}>`,
-        to: userEmail,
-        subject: subject,
-        text: message,
-        html: htmlBody
-      };
-
-      try {
-        await transporter.sendMail(mailOptions);
-        console.log(`[SMTP EMAIL SENT SUCCESS] To: ${userEmail} | Subject: ${subject}`);
-      } catch (err) {
-        console.warn(`Initial SMTP attempt failed (${err.message}). Retrying on port 465 SSL...`);
+    tasks.push(
+      (async () => {
         try {
-          const sslTransporter = getEmailTransporter(true);
-          await sslTransporter.sendMail(mailOptions);
-          console.log(`[SMTP EMAIL SENT SUCCESS VIA SSL 465] To: ${userEmail}`);
-        } catch (sslErr) {
-          console.error(`SMTP Email dispatch failed to ${userEmail}:`, sslErr.message);
-          throw sslErr;
+          await sendViaBrevoHttpApi(userEmail, user.name, subject, message, htmlBody);
+          console.log(`[BREVO EMAIL SENT SUCCESS] To: ${userEmail} | Subject: ${subject}`);
+        } catch (brevoErr) {
+          console.error('Brevo HTTPS API delivery error:', brevoErr.message);
+          // Fallback to SMTP
+          try {
+            const transporter = getEmailTransporter(true) || getEmailTransporter(false);
+            if (transporter) {
+              const smtpSender = process.env.SMTP_USER || 'atpasupathi77@gmail.com';
+              await transporter.sendMail({
+                from: `"Dately Assistant" <${smtpSender}>`,
+                to: userEmail,
+                subject: subject,
+                text: message,
+                html: htmlBody
+              });
+              console.log(`[SMTP EMAIL SENT SUCCESS] To: ${userEmail}`);
+            }
+          } catch (smtpErr) {
+            console.error('SMTP fallback failed:', smtpErr.message);
+          }
         }
-      }
-    } else {
-      // High-fidelity sandbox console output
-      console.log('\n================================================================');
-      console.log(`[EMAIL SIMULATION FOR ${userEmail.toUpperCase()}]`);
-      console.log(`SUBJECT: ${subject}`);
-      console.log(`MESSAGE: ${message}`);
-      console.log('================================================================\n');
-    }
+      })()
+    );
   }
 
-  // 2. Send WhatsApp Notification (Meta WhatsApp Cloud API)
-  if (user.phone && user.phone !== 'N/A') {
-    try {
-      const { sendWhatsAppMessage } = await import('./whatsappCloudService.js');
-      const whatsappText = `📢 *${subject}*\n\n${message}\n\n👉 *Manage in Dately:* https://dately-ten.vercel.app`;
-      await sendWhatsAppMessage(user.phone, whatsappText);
-    } catch (waErr) {
-      console.error('WhatsApp notification dispatch error:', waErr.message);
-    }
+  // 2. Send WhatsApp Notification (Meta WhatsApp Cloud REST API)
+  if (userPhone && userPhone !== 'N/A') {
+    tasks.push(
+      (async () => {
+        try {
+          const { sendWhatsAppMessage } = await import('./whatsappCloudService.js');
+          const whatsappText = `📢 *${subject}*\n\n${message}\n\n👉 *Manage in Dately:* https://dately-ten.vercel.app`;
+          await sendWhatsAppMessage(userPhone, whatsappText);
+        } catch (waErr) {
+          console.error('WhatsApp notification dispatch error:', waErr.message);
+        }
+      })()
+    );
   }
+
+  await Promise.allSettled(tasks);
 };
 
 /**
