@@ -1,5 +1,5 @@
-﻿import dotenv from 'dotenv';
-dotenv.config();
+const DEFAULT_PHONE_ID = '1308230419039794';
+const DEFAULT_TOKEN = 'EAAVoMdleMX0BSSn6cAPazROD32KwcivHgW8ioUDMDL7jllpdiZALNWt6bbtfaaG9j0UP0HnwUiZAgTc3yPufPZA3dmEEfgHjoqig503bu0UHFm0hEgdUZCmFLcpM1xmZBSXwdvlMR2LtDEcNf6kV4OVwh5wZCf5ZCoOC2t4LMOJiWPl0KMmChzUWfm3rKPjjfESNPuQD71CCjEY3cyR9OlJ6G6kGilLzTCuiDg1iJZBnKGzqBE1wuolZBM1qXiHjrKj9RYRRzG2QZAMu9xOZA9ZBZAZCdnv35qpwZDZD';
 
 /**
  * Normalizes phone numbers to Meta WhatsApp Cloud international format (without leading +)
@@ -19,8 +19,8 @@ export const normalizeWhatsAppPhone = (phone) => {
  * Sends a WhatsApp text message via Meta WhatsApp Cloud REST API (Port 443 HTTPS)
  */
 export const sendWhatsAppMessage = async (toPhone, message) => {
-  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
+  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID || DEFAULT_PHONE_ID;
+  const token = process.env.WHATSAPP_ACCESS_TOKEN || DEFAULT_TOKEN;
 
   const targetNumber = normalizeWhatsAppPhone(toPhone);
   if (!targetNumber) {
