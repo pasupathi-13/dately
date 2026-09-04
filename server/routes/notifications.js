@@ -55,14 +55,21 @@ router.post('/test-whatsapp', protect, async (req, res) => {
 
     const testMessage = `🤖 *DATELY WHATSAPP GATEWAY TEST*\n\nHello *${req.user.name || 'User'}*,\n\n🎉 Congratulations! Your Dately Meta WhatsApp Cloud integration is connected and working!\n\nYou will receive real-time deadline warnings and To-Do reminders directly in this chat.\n\n_Dately Notification Engine_`;
 
-    const success = await sendWhatsAppMessage(targetPhone, testMessage);
-    if (!success) {
-      return res.status(400).json({ message: 'WhatsApp message dispatch failed. Please verify your WhatsApp Phone Number ID and Access Token.' });
+    const result = await sendWhatsAppMessage(targetPhone, testMessage);
+    if (!result || !result.success) {
+      const errorDetail = result?.error || 'WhatsApp message dispatch failed.';
+      return res.status(400).json({
+        message: errorDetail.includes('Recipient phone number not in allowed list')
+          ? 'Meta Sandbox Security: Please add your phone number to the "To" allowed list in Meta for Developers (API Setup) first.'
+          : errorDetail,
+        error: errorDetail
+      });
     }
 
     res.json({
       message: 'Test WhatsApp message sent successfully!',
-      recipient: targetPhone
+      recipient: targetPhone,
+      messageId: result.messageId
     });
   } catch (error) {
     console.error('Test WhatsApp error:', error.message);

@@ -16,7 +16,7 @@ export const normalizeWhatsAppPhone = (phone) => {
 };
 
 /**
- * Sends a WhatsApp text message via Meta WhatsApp Cloud REST API (Port 443 HTTPS)
+ * Sends a WhatsApp message via Meta WhatsApp Cloud REST API (Port 443 HTTPS)
  */
 export const sendWhatsAppMessage = async (toPhone, message) => {
   const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID || DEFAULT_PHONE_ID;
@@ -25,17 +25,19 @@ export const sendWhatsAppMessage = async (toPhone, message) => {
   const targetNumber = normalizeWhatsAppPhone(toPhone);
   if (!targetNumber) {
     console.warn('[WHATSAPP SKIP] Invalid or missing recipient phone number:', toPhone);
-    return false;
+    return { success: false, error: 'Invalid or missing phone number' };
   }
 
   if (!phoneId || !token) {
     console.log(`[WHATSAPP STANDBY FOR CREDENTIALS] To: ${targetNumber} | Text: ${message.substring(0, 80)}...`);
-    return true;
+    return { success: true };
   }
 
   try {
     const url = `https://graph.facebook.com/v18.0/${phoneId}/messages`;
-    const payload = {
+    
+    // 1. Try sending as standard text message
+    let payload = {
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
       to: targetNumber,
@@ -46,7 +48,7 @@ export const sendWhatsAppMessage = async (toPhone, message) => {
       }
     };
 
-    const response = await fetch(url, {
+    let response = await fetch(url, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -55,17 +57,43 @@ export const sendWhatsAppMessage = async (toPhone, message) => {
       body: JSON.stringify(payload)
     });
 
-    const data = await response.json();
+    let data = await response.json();
+
+    // 2. If 24-hour window restriction requires template, fallback to standard template
+    if (!response.ok && data.error?.code === 131047) {
+      console.log('[WHATSAPP] 24h window expired, falling back to template message...');
+      payload = {
+        messaging_product: 'whatsapp',
+        to: targetNumber,
+        type: 'template',
+        template: {
+          name: 'hello_world',
+          language: { code: 'en_US' }
+        }
+      };
+
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      data = await response.json();
+    }
+
     if (!response.ok) {
-      console.error('[WHATSAPP API ERROR]', data.error?.message || response.statusText);
-      return false;
+      const errMsg = data.error?.error_data?.details || data.error?.message || response.statusText;
+      console.error('[WHATSAPP API ERROR]', errMsg);
+      return { success: false, error: errMsg, code: data.error?.code };
     }
 
     console.log(`[WHATSAPP CLOUD API SENT SUCCESS] To: ${targetNumber} | MessageId: ${data.messages?.[0]?.id || 'OK'}`);
-    return true;
+    return { success: true, messageId: data.messages?.[0]?.id };
   } catch (err) {
     console.error('[WHATSAPP DISPATCH ERROR]:', err.message);
-    return false;
+    return { success: false, error: err.message };
   }
 };
 
