@@ -6,6 +6,42 @@ try {
   dns.setDefaultResultOrder('ipv4first');
 } catch (e) {}
 
+/**
+ * Sends email via Brevo HTTPS REST API over Port 443 (Never blocked by Render cloud firewall)
+ */
+const sendViaBrevoHttpApi = async (toEmail, toName, subject, text, html) => {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) return false;
+
+  const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.SMTP_USER || 'atpasupathi77@gmail.com';
+  const senderName = 'Dately Assistant';
+
+  const payload = {
+    sender: { name: senderName, email: senderEmail },
+    to: [{ email: toEmail, name: toName || 'User' }],
+    subject: subject,
+    htmlContent: html,
+    textContent: text
+  };
+
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': apiKey.trim(),
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || `Brevo HTTP API Error (${response.status})`);
+  }
+  console.log(`[BREVO HTTPS API SENT SUCCESS] To: ${toEmail} | MessageId: ${data.messageId || 'OK'}`);
+  return true;
+};
+
 // Setup email transporter if SMTP credentials are provided or use verified fallback
 const getEmailTransporter = (forceSsl = false) => {
   const user = process.env.SMTP_USER || 'atpasupathi77@gmail.com';
@@ -22,9 +58,9 @@ const getEmailTransporter = (forceSsl = false) => {
     port,
     secure: port === 465,
     auth: { user, pass },
-    connectionTimeout: 4000,
-    greetingTimeout: 3000,
-    socketTimeout: 5000,
+    connectionTimeout: 5000,
+    greetingTimeout: 4000,
+    socketTimeout: 6000,
     tls: {
       rejectUnauthorized: false
     }
@@ -32,25 +68,39 @@ const getEmailTransporter = (forceSsl = false) => {
 };
 
 /**
- * Sends a notification via Email and/or SMS depending on user settings
+ * Sends a notification via Email depending on user settings
  */
 export const dispatchNotification = async (user, subject, message) => {
-  const prefs = user.notificationPreferences || { email: true, sms: true };
+  const prefs = user.notificationPreferences || { email: true, sms: false };
   const userEmail = user.email;
-  let userPhone = user.phone || 'N/A';
-  if (userPhone !== 'N/A') {
-    userPhone = userPhone.trim();
-    if (userPhone.length === 10 && !userPhone.startsWith('+')) {
-      userPhone = `+91${userPhone}`;
-    } else if (userPhone.length === 12 && userPhone.startsWith('91')) {
-      userPhone = `+${userPhone}`;
-    }
-  }
 
-  // 1. Send Email Notification
+  // Send Email Notification
   if (prefs.email && userEmail) {
-    let transporter = getEmailTransporter(false);
     const smtpSender = process.env.SMTP_USER || 'atpasupathi77@gmail.com';
+    const htmlBody = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; color: #1e293b; background: #f8fafc; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0;">
+        <h2 style="color: #0f172a; border-bottom: 2px solid #0284c7; padding-bottom: 10px;">Dately Renewal Notification</h2>
+        <p style="font-size: 14px; line-height: 1.6; color: #334155;">Hello <strong>${user.name || 'User'}</strong>,</p>
+        <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #0284c7; margin: 15px 0;">
+          <p style="font-size: 15px; margin: 0; font-weight: bold; color: #0369a1;">${subject}</p>
+          <p style="font-size: 14px; margin: 10px 0 0 0; color: #475569;">${message}</p>
+        </div>
+        <p style="font-size: 12px; color: #64748b; margin-top: 20px;">You are receiving this because email reminders are enabled on your Dately dashboard account settings.</p>
+      </div>
+    `;
+
+    // 1. First Priority: Brevo HTTPS REST API (Port 443 - Never blocked on Render)
+    if (process.env.BREVO_API_KEY) {
+      try {
+        const sent = await sendViaBrevoHttpApi(userEmail, user.name, subject, message, htmlBody);
+        if (sent) return;
+      } catch (brevoErr) {
+        console.error('Brevo HTTPS API delivery error:', brevoErr.message);
+      }
+    }
+
+    // 2. Second Priority: Direct Nodemailer SMTP
+    let transporter = getEmailTransporter(false);
     
     if (transporter) {
       const mailOptions = {
@@ -58,24 +108,14 @@ export const dispatchNotification = async (user, subject, message) => {
         to: userEmail,
         subject: subject,
         text: message,
-        html: `
-          <div style="font-family: Arial, sans-serif; padding: 20px; color: #1e293b; background: #f8fafc; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0;">
-            <h2 style="color: #0f172a; border-bottom: 2px solid #0284c7; padding-bottom: 10px;">Dately Renewal Notification</h2>
-            <p style="font-size: 14px; line-height: 1.6; color: #334155;">Hello <strong>${user.name || 'User'}</strong>,</p>
-            <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #0284c7; margin: 15px 0;">
-              <p style="font-size: 15px; margin: 0; font-weight: bold; color: #0369a1;">${subject}</p>
-              <p style="font-size: 14px; margin: 10px 0 0 0; color: #475569;">${message}</p>
-            </div>
-            <p style="font-size: 12px; color: #64748b; margin-top: 20px;">You are receiving this because email reminders are enabled on your Dately dashboard account settings.</p>
-          </div>
-        `
+        html: htmlBody
       };
 
       try {
         await transporter.sendMail(mailOptions);
         console.log(`[SMTP EMAIL SENT SUCCESS] To: ${userEmail} | Subject: ${subject}`);
       } catch (err) {
-        console.warn(`Initial SMTP attempt on port 587 failed (${err.message}). Retrying on port 465 SSL...`);
+        console.warn(`Initial SMTP attempt failed (${err.message}). Retrying on port 465 SSL...`);
         try {
           const sslTransporter = getEmailTransporter(true);
           await sslTransporter.sendMail(mailOptions);
