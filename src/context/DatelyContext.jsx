@@ -108,6 +108,7 @@ export function DatelyProvider({ children }) {
       localStorage.removeItem('dately_token');
       localStorage.removeItem('dately_page');
       localStorage.removeItem('dately_temp_signup');
+      localStorage.clear();
       sessionStorage.clear();
     } catch {}
     setToken('');
@@ -120,6 +121,7 @@ export function DatelyProvider({ children }) {
     setCurrentParams(null);
     if (typeof window !== 'undefined') {
       window.history.replaceState({}, document.title, '/');
+      window.location.href = '/';
     }
   };
 
