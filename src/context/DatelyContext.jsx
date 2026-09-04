@@ -320,19 +320,15 @@ export function DatelyProvider({ children }) {
         throw new Error(data.message || 'Failed to send verification code');
       }
 
-      const signupObj = { name, email, phone, password, otp: data.otp };
+      const signupObj = { name, email, phone, password };
       try {
         localStorage.setItem('dately_temp_signup', JSON.stringify(signupObj));
       } catch {}
       setTempSignupData(signupObj);
 
-      if (data.otp) {
-        showToast(`Verification code sent to ${email}`, 'success');
-      } else {
-        showToast('Verification code sent to your email address!', 'success');
-      }
+      showToast(`Verification code sent to ${email}. Please check your inbox!`, 'success');
       navigateTo('otp'); // Redirect to verification screen
-      return { success: true, otp: data.otp };
+      return { success: true };
     } catch (err) {
       showToast(err.message, 'danger');
       return { success: false, error: err.message };
@@ -437,13 +433,8 @@ export function DatelyProvider({ children }) {
         throw new Error(data.message || 'Failed to resend verification code');
       }
 
-      const signupObj = { ...tempSignupData, otp: data.otp };
-      try {
-        localStorage.setItem('dately_temp_signup', JSON.stringify(signupObj));
-      } catch {}
-      setTempSignupData(signupObj);
-      showToast('New verification code sent to your email!', 'success');
-      return { success: true, otp: data.otp };
+      showToast('New verification code sent to your email inbox!', 'success');
+      return { success: true };
     } catch (err) {
       showToast(err.message, 'danger');
       return { success: false, error: err.message };

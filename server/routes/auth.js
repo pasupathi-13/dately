@@ -150,7 +150,6 @@ router.post('/send-otp', async (req, res) => {
     res.json({
       success: true,
       message: 'Verification code sent to your email address.',
-      otp,
       email: targetEmail
     });
   } catch (error) {
