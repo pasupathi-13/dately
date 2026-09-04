@@ -280,21 +280,44 @@ export function DatelyProvider({ children }) {
     };
   }, [token]);
 
-  // Live Active Scheduler Heartbeat (keeps Render awake & triggers minute-precision task scans)
+  // Live Active Scheduler Heartbeat (keeps Render awake, triggers backend scans, and shows in-app alerts)
   useEffect(() => {
     if (!token || token.split('.').length !== 3) return;
 
-    const intervalId = setInterval(async () => {
+    const checkAndTrigger = async () => {
       try {
         await fetch(`${API_URL}/notifications/trigger`, {
           method: 'POST',
           headers: getAuthHeaders()
         });
-      } catch {}
-    }, 30000);
 
+        // In-app real-time notification check
+        const now = new Date();
+        const istDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now);
+        const istTime = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }).format(now);
+
+        (reminders || []).forEach(rem => {
+          if (rem.status === 'Pending' && rem.dueDate === istDate && rem.time === istTime && !rem._inAppNotified) {
+            rem._inAppNotified = true;
+            showToast(`⏰ Task Due Now: "${rem.name}" (${rem.time})!`, 'info');
+            setNotifications(prev => [{
+              id: `notif-${Date.now()}`,
+              title: `Task Due: ${rem.name}`,
+              message: `Your scheduled task "${rem.name}" is due now at ${rem.time}.`,
+              type: 'info',
+              category: 'Tasks',
+              read: false,
+              createdAt: new Date().toISOString()
+            }, ...prev]);
+          }
+        });
+      } catch {}
+    };
+
+    checkAndTrigger();
+    const intervalId = setInterval(checkAndTrigger, 30000);
     return () => clearInterval(intervalId);
-  }, [token]);
+  }, [token, reminders]);
 
   const handleLogin = async (email, password) => {
     try {
