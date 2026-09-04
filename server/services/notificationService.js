@@ -57,10 +57,11 @@ const getEmailTransporter = (forceSsl = false) => {
     host,
     port,
     secure: port === 465,
+    family: 4, // Strict IPv4 socket (prevents IPv6 ENETUNREACH on Render Linux network)
     auth: { user, pass },
-    connectionTimeout: 5000,
-    greetingTimeout: 4000,
-    socketTimeout: 6000,
+    connectionTimeout: 8000,
+    greetingTimeout: 6000,
+    socketTimeout: 10000,
     tls: {
       rejectUnauthorized: false
     }
