@@ -106,13 +106,21 @@ export function DatelyProvider({ children }) {
   const handleLogout = () => {
     try {
       localStorage.removeItem('dately_token');
+      localStorage.removeItem('dately_page');
+      localStorage.removeItem('dately_temp_signup');
+      sessionStorage.clear();
     } catch {}
     setToken('');
     setUserProfile(defaultUserProfile);
     setDocuments([]);
     setObligations([]);
     setReminders([]);
-    navigateTo('landing');
+    setNotifications([]);
+    setCurrentPage('landing');
+    setCurrentParams(null);
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({}, document.title, '/');
+    }
   };
 
   // Intercept Google OAuth redirection token & query parameters on startup
@@ -128,39 +136,59 @@ export function DatelyProvider({ children }) {
         setToken(urlToken);
       }
 
-      if (pageParam && ['dashboard', 'documents', 'obligations', 'settings', 'upload', 'todos', 'calendar', 'help', 'notifications', 'profile', 'login', 'onboarding'].includes(pageParam)) {
-        navigateTo(pageParam);
+      const activeToken = urlToken || localStorage.getItem('dately_token');
+      const isAuthenticated = Boolean(activeToken && activeToken.split('.').length === 3);
+
+      if (pageParam) {
+        if (['login', 'signup', 'otp', 'forgot-password', 'landing'].includes(pageParam)) {
+          navigateTo(pageParam);
+        } else if (isAuthenticated && ['dashboard', 'documents', 'obligations', 'settings', 'upload', 'todos', 'calendar', 'help', 'notifications', 'profile', 'onboarding'].includes(pageParam)) {
+          navigateTo(pageParam);
+        } else {
+          navigateTo('landing');
+        }
       }
 
       if (googleStatus === 'connected') {
         showToast('Google Drive connected successfully!', 'success');
-        navigateTo('settings');
-        // Refresh profile from backend to show active connected status
-        setTimeout(async () => {
-          try {
-            const activeToken = urlToken || localStorage.getItem('dately_token');
-            if (activeToken) {
-              const res = await fetch(`${API_URL}/auth/profile`, {
-                headers: { 'Authorization': `Bearer ${activeToken}` }
-              });
-              if (res.ok) {
-                const freshProfile = await res.json();
-                if (freshProfile && freshProfile._id) {
-                  setUserProfile(freshProfile);
+        if (isAuthenticated) {
+          navigateTo('settings');
+          // Refresh profile from backend to show active connected status
+          setTimeout(async () => {
+            try {
+              if (activeToken) {
+                const res = await fetch(`${API_URL}/auth/profile`, {
+                  headers: { 'Authorization': `Bearer ${activeToken}` }
+                });
+                if (res.ok) {
+                  const freshProfile = await res.json();
+                  if (freshProfile && freshProfile._id) {
+                    setUserProfile(freshProfile);
+                  }
                 }
               }
-            }
-          } catch {}
-        }, 300);
+            } catch {}
+          }, 300);
+        } else {
+          navigateTo('login');
+        }
       } else if (googleStatus === 'error') {
         showToast('Failed to link Google Drive. Please try again.', 'danger');
-        navigateTo('settings');
+        if (isAuthenticated) {
+          navigateTo('settings');
+        }
       }
 
       // Check pathname for direct SPA routing
       const path = window.location.pathname.replace(/^\/+|\/+$/g, '');
-      if (path && ['dashboard', 'documents', 'obligations', 'settings', 'upload', 'todos', 'calendar', 'help', 'notifications', 'profile'].includes(path)) {
-        navigateTo(path);
+      if (path) {
+        if (['login', 'signup', 'otp', 'forgot-password', 'landing'].includes(path)) {
+          navigateTo(path);
+        } else if (isAuthenticated && ['dashboard', 'documents', 'obligations', 'settings', 'upload', 'todos', 'calendar', 'help', 'notifications', 'profile'].includes(path)) {
+          navigateTo(path);
+        } else if (!isAuthenticated) {
+          navigateTo('landing');
+        }
       }
 
       if (urlToken || googleStatus || pageParam) {

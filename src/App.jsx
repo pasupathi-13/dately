@@ -67,7 +67,7 @@ class ErrorBoundary extends React.Component {
 }
 
 function MainApp() {
-  const { currentPage, isLoaded } = useDately();
+  const { currentPage, isLoaded, token } = useDately();
 
   if (!isLoaded) {
     return (
@@ -75,6 +75,14 @@ function MainApp() {
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-dately-primary" />
       </div>
     );
+  }
+
+  const isAuthenticated = Boolean(token && typeof token === 'string' && token.split('.').length === 3);
+  const publicPages = ['landing', 'login', 'signup', 'otp', 'forgot-password'];
+
+  // Route Guard: If not logged in and attempting to view any protected page, show LandingPage
+  if (!isAuthenticated && !publicPages.includes(currentPage)) {
+    return <LandingPage />;
   }
 
   switch (currentPage) {
