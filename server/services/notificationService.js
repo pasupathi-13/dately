@@ -151,13 +151,36 @@ export const dispatchNotification = async (user, subject, message) => {
 };
 
 /**
+ * Converts any time input (e.g. "4:50 PM", "04:50 PM", "16:50", "9:30 AM") to "HH:MM" 24h format
+ */
+export const normalizeTimeTo24Hour = (timeStr) => {
+  if (!timeStr) return '';
+  const trimmed = String(timeStr).trim();
+  const match12 = trimmed.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+  if (!match12) return trimmed;
+  
+  let hours = parseInt(match12[1], 10);
+  const minutes = match12[2];
+  const ampm = (match12[3] || '').toUpperCase();
+
+  if (ampm === 'PM' && hours < 12) hours += 12;
+  if (ampm === 'AM' && hours === 12) hours = 0;
+
+  return `${String(hours).padStart(2, '0')}:${minutes}`;
+};
+
+/**
  * Scans the database and dispatches notifications for expiring documents & payment deadlines
  */
 export const scanAndSendReminders = async () => {
-  console.log('--- STARTING DATELY REMINDER SCANNER ENGINE ---');
   try {
     const usersSnapshot = await db.collection('users').get();
     let totalNotificationsSent = 0;
+
+    // Calculate current date and time in IST (Asia/Kolkata)
+    const now = new Date();
+    const istDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now); // YYYY-MM-DD
+    const istTimeStr = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }).format(now); // HH:MM
 
     for (const userDoc of usersSnapshot.docs) {
       const user = userDoc.data();
@@ -244,13 +267,8 @@ export const scanAndSendReminders = async () => {
         }
       }
 
-      // 3. Scan User Reminders (To-Do List tasks with exact time support)
+      // 3. Scan User Reminders (To-Do List tasks with exact date & time matching)
       const remindersSnapshot = await db.collection('reminders').get();
-      
-      // Calculate current date and time in IST (Asia/Kolkata)
-      const now = new Date();
-      const istDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now); // YYYY-MM-DD
-      const istTimeStr = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }).format(now); // HH:MM
 
       for (const remDoc of remindersSnapshot.docs) {
         const rem = remDoc.data();
@@ -258,49 +276,53 @@ export const scanAndSendReminders = async () => {
         if (remUserId !== user._id) continue;
         if (rem.status === 'Completed' || !rem.dueDate) continue;
 
-        // Calculate days difference
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const due = new Date(rem.dueDate);
-        due.setHours(0, 0, 0, 0);
-
-        const diffTime = due.getTime() - today.getTime();
-        const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
         let subject = '';
         let message = '';
         let notificationKey = '';
 
-        if (rem.dueDate === istDateStr) {
+        // Match date string (format YYYY-MM-DD)
+        const taskDueDate = String(rem.dueDate).split('T')[0].trim();
+
+        if (taskDueDate === istDateStr) {
           // Task is due TODAY
           if (rem.time) {
-            // Task has a specific scheduled time (e.g. "16:45")
-            if (istTimeStr >= rem.time && rem.lastNotifiedDate !== istDateStr) {
-              subject = `🚨 Task Due Now: "${rem.name}" (${rem.time})`;
-              message = `Dately Task Alert: Your scheduled task "${rem.name}" is due now at ${rem.time}.${rem.notes ? `\nNotes: ${rem.notes}` : ''}`;
+            const taskTime24 = normalizeTimeTo24Hour(rem.time);
+            // Trigger when current time reaches or passes scheduled task time
+            if (istTimeStr >= taskTime24 && rem.lastNotifiedDate !== istDateStr) {
+              subject = `⏰ Reminder: "${rem.name}" (Scheduled for ${rem.time})`;
+              message = `Dately Reminder Alert: Your scheduled task "${rem.name}" is due now at ${rem.time}.${rem.notes ? `\n\nNotes: ${rem.notes}` : ''}\n\nCategory: ${rem.category || 'Personal'}`;
               notificationKey = istDateStr;
             }
           } else {
-            // No specific time, send morning/day reminder once
+            // Task has no specific time: notify once on due day
             if (rem.lastNotifiedDate !== istDateStr) {
-              subject = `🚨 Urgent Reminder: "${rem.name}" is scheduled for TODAY!`;
-              message = `Dately Task Alert: Your scheduled task "${rem.name}" is active today (${rem.dueDate}).${rem.notes ? `\nNotes: ${rem.notes}` : ''}`;
+              subject = `🚨 Reminder: "${rem.name}" is scheduled for TODAY!`;
+              message = `Dately Reminder Alert: Your scheduled task "${rem.name}" is active today (${rem.dueDate}).${rem.notes ? `\n\nNotes: ${rem.notes}` : ''}\n\nCategory: ${rem.category || 'Personal'}`;
               notificationKey = istDateStr;
             }
           }
-        } else if (daysLeft === 1) {
-          const key = `${istDateStr}_1d`;
-          if (rem.lastNotifiedDate !== key) {
-            subject = `⏰ Reminder: "${rem.name}" is scheduled for tomorrow`;
-            message = `Dately Reminder: You have a scheduled task tomorrow (${rem.dueDate}): "${rem.name}"${rem.time ? ` at ${rem.time}` : ''}.${rem.notes ? `\nNotes: ${rem.notes}` : ''}`;
-            notificationKey = key;
-          }
-        } else if (daysLeft === 3) {
-          const key = `${istDateStr}_3d`;
-          if (rem.lastNotifiedDate !== key) {
-            subject = `⏰ Reminder: "${rem.name}" is coming up in 3 days`;
-            message = `Dately Reminder: You have an upcoming task on ${rem.dueDate}: "${rem.name}"${rem.time ? ` at ${rem.time}` : ''}.${rem.notes ? `\nNotes: ${rem.notes}` : ''}`;
-            notificationKey = key;
+        } else {
+          // Check upcoming threshold alerts
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const due = new Date(taskDueDate);
+          due.setHours(0, 0, 0, 0);
+          const daysLeft = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+          if (daysLeft === 1) {
+            const key = `${istDateStr}_1d`;
+            if (rem.lastNotifiedDate !== key) {
+              subject = `⏰ Reminder: "${rem.name}" is scheduled for tomorrow`;
+              message = `Dately Reminder: You have a scheduled task tomorrow (${taskDueDate})${rem.time ? ` at ${rem.time}` : ''}.${rem.notes ? `\n\nNotes: ${rem.notes}` : ''}`;
+              notificationKey = key;
+            }
+          } else if (daysLeft === 3) {
+            const key = `${istDateStr}_3d`;
+            if (rem.lastNotifiedDate !== key) {
+              subject = `⏰ Reminder: "${rem.name}" is coming up in 3 days`;
+              message = `Dately Reminder: You have an upcoming task on ${taskDueDate}${rem.time ? ` at ${rem.time}` : ''}.${rem.notes ? `\n\nNotes: ${rem.notes}` : ''}`;
+              notificationKey = key;
+            }
           }
         }
 
@@ -308,6 +330,7 @@ export const scanAndSendReminders = async () => {
           await dispatchNotification(user, subject, message);
           await remDoc.ref.update({ lastNotifiedDate: notificationKey }).catch(() => {});
           totalNotificationsSent++;
+          console.log(`[SCHEDULED TO-DO ALERT SENT] To: ${user.email} & ${user.phone} | Task: "${rem.name}" at ${rem.time || 'all day'}`);
         }
       }
     }
