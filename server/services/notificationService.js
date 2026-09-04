@@ -276,61 +276,56 @@ export const scanAndSendReminders = async () => {
         if (remUserId !== user._id) continue;
         if (rem.status === 'Completed' || !rem.dueDate) continue;
 
-        let subject = '';
-        let message = '';
-        let notificationKey = '';
-
-        // Match date string (format YYYY-MM-DD)
         const taskDueDate = String(rem.dueDate).split('T')[0].trim();
 
+        // 1. If task is due TODAY
         if (taskDueDate === istDateStr) {
-          // Task is due TODAY
           if (rem.time) {
             const taskTime24 = normalizeTimeTo24Hour(rem.time);
             // Trigger when current time reaches or passes scheduled task time
-            if (istTimeStr >= taskTime24 && rem.lastNotifiedDate !== istDateStr) {
-              subject = `⏰ Reminder: "${rem.name}" (Scheduled for ${rem.time})`;
-              message = `Dately Reminder Alert: Your scheduled task "${rem.name}" is due now at ${rem.time}.${rem.notes ? `\n\nNotes: ${rem.notes}` : ''}\n\nCategory: ${rem.category || 'Personal'}`;
-              notificationKey = istDateStr;
+            if (istTimeStr >= taskTime24 && !rem.timeNotified) {
+              const subject = `⏰ Reminder: "${rem.name}" (Scheduled for ${rem.time})`;
+              const message = `Hello ${user.name || 'User'},\n\nYour scheduled task "${rem.name}" is due now at ${rem.time}.${rem.notes ? `\n\nNotes: ${rem.notes}` : ''}\n\nCategory: ${rem.category || 'Personal'}\n\nPlease mark it as completed on your Dately dashboard: https://dately-ten.vercel.app`;
+              
+              await dispatchNotification(user, subject, message);
+              await remDoc.ref.update({ timeNotified: true, lastNotifiedAt: new Date().toISOString() }).catch(() => {});
+              totalNotificationsSent++;
+              console.log(`[SCHEDULED TO-DO ALERT SENT] To: ${user.email} & ${user.phone} | Task: "${rem.name}" at ${rem.time}`);
             }
           } else {
-            // Task has no specific time: notify once on due day
-            if (rem.lastNotifiedDate !== istDateStr) {
-              subject = `🚨 Reminder: "${rem.name}" is scheduled for TODAY!`;
-              message = `Dately Reminder Alert: Your scheduled task "${rem.name}" is active today (${rem.dueDate}).${rem.notes ? `\n\nNotes: ${rem.notes}` : ''}\n\nCategory: ${rem.category || 'Personal'}`;
-              notificationKey = istDateStr;
+            // General task due today without specific time: send once
+            if (!rem.dayNotified) {
+              const subject = `🚨 Task Active Today: "${rem.name}"`;
+              const message = `Hello ${user.name || 'User'},\n\nYour scheduled task "${rem.name}" is active today (${rem.dueDate}).${rem.notes ? `\n\nNotes: ${rem.notes}` : ''}\n\nCategory: ${rem.category || 'Personal'}`;
+              
+              await dispatchNotification(user, subject, message);
+              await remDoc.ref.update({ dayNotified: true, lastNotifiedAt: new Date().toISOString() }).catch(() => {});
+              totalNotificationsSent++;
             }
           }
         } else {
-          // Check upcoming threshold alerts
+          // 2. Check upcoming threshold alerts (1 day or 3 days before)
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           const due = new Date(taskDueDate);
           due.setHours(0, 0, 0, 0);
           const daysLeft = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-          if (daysLeft === 1) {
-            const key = `${istDateStr}_1d`;
-            if (rem.lastNotifiedDate !== key) {
-              subject = `⏰ Reminder: "${rem.name}" is scheduled for tomorrow`;
-              message = `Dately Reminder: You have a scheduled task tomorrow (${taskDueDate})${rem.time ? ` at ${rem.time}` : ''}.${rem.notes ? `\n\nNotes: ${rem.notes}` : ''}`;
-              notificationKey = key;
-            }
-          } else if (daysLeft === 3) {
-            const key = `${istDateStr}_3d`;
-            if (rem.lastNotifiedDate !== key) {
-              subject = `⏰ Reminder: "${rem.name}" is coming up in 3 days`;
-              message = `Dately Reminder: You have an upcoming task on ${taskDueDate}${rem.time ? ` at ${rem.time}` : ''}.${rem.notes ? `\n\nNotes: ${rem.notes}` : ''}`;
-              notificationKey = key;
-            }
+          if (daysLeft === 1 && !rem.notified1DayBefore) {
+            const subject = `⏰ Reminder: "${rem.name}" is scheduled for tomorrow`;
+            const message = `Hello ${user.name || 'User'},\n\nYou have a scheduled task tomorrow (${taskDueDate})${rem.time ? ` at ${rem.time}` : ''}.${rem.notes ? `\n\nNotes: ${rem.notes}` : ''}`;
+            
+            await dispatchNotification(user, subject, message);
+            await remDoc.ref.update({ notified1DayBefore: true }).catch(() => {});
+            totalNotificationsSent++;
+          } else if (daysLeft === 3 && !rem.notified3DaysBefore) {
+            const subject = `⏰ Reminder: "${rem.name}" is coming up in 3 days`;
+            const message = `Hello ${user.name || 'User'},\n\nYou have an upcoming task in 3 days (${taskDueDate})${rem.time ? ` at ${rem.time}` : ''}.${rem.notes ? `\n\nNotes: ${rem.notes}` : ''}`;
+            
+            await dispatchNotification(user, subject, message);
+            await remDoc.ref.update({ notified3DaysBefore: true }).catch(() => {});
+            totalNotificationsSent++;
           }
-        }
-
-        if (subject && notificationKey) {
-          await dispatchNotification(user, subject, message);
-          await remDoc.ref.update({ lastNotifiedDate: notificationKey }).catch(() => {});
-          totalNotificationsSent++;
-          console.log(`[SCHEDULED TO-DO ALERT SENT] To: ${user.email} & ${user.phone} | Task: "${rem.name}" at ${rem.time || 'all day'}`);
         }
       }
     }
