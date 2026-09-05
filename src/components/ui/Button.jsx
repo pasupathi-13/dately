@@ -11,8 +11,8 @@ export function Button({
     primary: "bg-dately-primary text-white hover:bg-dately-secondary focus:ring-dately-primary",
     secondary: "bg-dately-success text-white hover:bg-opacity-90 focus:ring-dately-success",
     danger: "bg-dately-danger text-white hover:bg-opacity-90 focus:ring-dately-danger",
-    outline: "border border-dately-border text-dately-navy bg-white hover:bg-dately-background focus:ring-dately-primary",
-    ghost: "text-dately-slate hover:bg-dately-background hover:text-dately-navy focus:ring-dately-primary"
+    outline: "border border-dately-border dark:border-slate-700 text-dately-navy dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-dately-background dark:hover:bg-slate-700 focus:ring-dately-primary",
+    ghost: "text-dately-slate dark:text-slate-400 hover:bg-dately-background dark:hover:bg-slate-800 hover:text-dately-navy dark:hover:text-slate-200 focus:ring-dately-primary"
   };
   const sizes = {
     sm: "px-3 py-1.5 text-xs",

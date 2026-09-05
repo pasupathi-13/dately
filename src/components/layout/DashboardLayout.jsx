@@ -29,10 +29,10 @@ function ClockWidget() {
 
   return (
     <div className="hidden md:flex flex-col items-center justify-center text-center px-4 mx-auto select-none">
-      <span className="text-base sm:text-lg font-black text-slate-900 font-mono tracking-wide leading-none">
+      <span className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 font-mono tracking-wide leading-none">
         {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
       </span>
-      <span className="text-[11px] sm:text-xs text-slate-500 font-extrabold uppercase tracking-wider mt-0.5 leading-none">
+      <span className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider mt-0.5 leading-none">
         {currentTime.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
       </span>
     </div>
@@ -109,25 +109,25 @@ export default function DashboardLayout({ children }) {
     className="p-1.5 hover:bg-white/10 rounded-lg text-white/60 hover:text-dately-danger transition-colors"
     title="Log Out"
   ><LogOut className="w-4 h-4" /></button></div></div></div>;
-  return <div className="min-h-screen flex bg-dately-background text-dately-navy">{
+  return <div className="min-h-screen flex bg-dately-background dark:bg-slate-950 text-dately-navy dark:text-slate-100 transition-colors duration-200">{
     /* Desktop Sidebar (Fixed) */
-  }<aside className="hidden lg:block w-64 flex-shrink-0 sticky top-0 h-screen border-r border-dately-border"><SidebarContent /></aside>{
+  }<aside className="hidden lg:block w-64 flex-shrink-0 sticky top-0 h-screen border-r border-dately-border dark:border-slate-800"><SidebarContent /></aside>{
     /* Main Container */
   }<div className="flex-1 flex flex-col min-w-0">{
     /* Top Header */
-  }<header className="sticky top-0 bg-white border-b-2 border-dately-navy h-16 flex items-center justify-between px-4 lg:px-8 z-40"><div className="flex items-center space-x-4 flex-1">{
+  }<header className="sticky top-0 bg-white dark:bg-slate-900 border-b-2 border-dately-navy dark:border-slate-700 h-16 flex items-center justify-between px-4 lg:px-8 z-40 transition-colors duration-200"><div className="flex items-center space-x-4 flex-1">{
     /* Mobile Hamburger menu */
   }<button
     onClick={() => setIsMobileMenuOpen(true)}
-    className="lg:hidden p-2 -ml-2 text-dately-navy hover:bg-slate-100 rounded-lg"
+    className="lg:hidden p-2 -ml-2 text-dately-navy dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
   ><Menu className="w-6 h-6" /></button>{
     /* Global Search Bar */
-  }<form onSubmit={handleSearchSubmit} className="hidden md:flex items-center max-w-md w-full relative"><Search className="w-4 h-4 text-dately-slate absolute left-3 pointer-events-none" /><input
+  }<form onSubmit={handleSearchSubmit} className="hidden md:flex items-center max-w-md w-full relative"><Search className="w-4 h-4 text-dately-slate dark:text-slate-400 absolute left-3 pointer-events-none" /><input
     type="text"
     placeholder="Search documents, obligations, bills..."
     value={searchQuery}
     onChange={(e) => setSearchQuery(e.target.value)}
-    className="pl-10 pr-4 py-2 border border-dately-border rounded-lg text-sm bg-dately-background focus:bg-white focus:outline-none focus:ring-2 focus:ring-dately-primary w-full transition-all"
+    className="pl-10 pr-4 py-2 border border-dately-border dark:border-slate-700 rounded-lg text-sm bg-dately-background dark:bg-slate-800 dark:text-white dark:placeholder-slate-400 focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-dately-primary w-full transition-all"
   /></form></div>{
     /* Running Clock Widget in Center Space */
   }<ClockWidget />{
@@ -139,30 +139,30 @@ export default function DashboardLayout({ children }) {
       setIsNotifDropdownOpen(!isNotifDropdownOpen);
       setIsProfileDropdownOpen(false);
     }}
-    className={`p-2 rounded-lg text-dately-slate hover:text-dately-navy hover:bg-slate-100 relative ${isNotifDropdownOpen ? "bg-slate-100 text-dately-navy" : ""}`}
-  ><Bell className="w-5 h-5" />{unreadNotifications.length > 0 && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-dately-danger rounded-full ring-2 ring-white" />}</button>{
+    className={`p-2 rounded-lg text-dately-slate dark:text-slate-300 hover:text-dately-navy dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 relative ${isNotifDropdownOpen ? "bg-slate-100 dark:bg-slate-800 text-dately-navy dark:text-white" : ""}`}
+  ><Bell className="w-5 h-5" />{unreadNotifications.length > 0 && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-dately-danger rounded-full ring-2 ring-white dark:ring-slate-900" />}</button>{
     /* Dropdown menu */
-  }{isNotifDropdownOpen && <div className="absolute right-0 mt-2 w-80 bg-white border border-dately-border rounded-xl shadow-xl z-50 py-2"><div className="flex items-center justify-between px-4 py-2 border-b border-dately-navy/25"><span className="font-bold text-sm text-dately-navy">Notifications</span>{unreadNotifications.length > 0 && <button
+  }{isNotifDropdownOpen && <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-900 border border-dately-border dark:border-slate-800 rounded-xl shadow-xl z-50 py-2"><div className="flex items-center justify-between px-4 py-2 border-b border-dately-navy/25 dark:border-slate-800"><span className="font-bold text-sm text-dately-navy dark:text-white">Notifications</span>{unreadNotifications.length > 0 && <button
     onClick={markAllNotificationsRead}
     className="text-xs text-dately-secondary hover:underline font-semibold"
   >
                         Mark all as read
-                      </button>}</div><div className="max-h-64 overflow-y-auto divide-y divide-dately-border">{notifications.length === 0 ? <div className="p-4 text-center text-xs text-dately-slate">No notifications.</div> : notifications.slice(0, 5).map((notif) => <div
+                      </button>}</div><div className="max-h-64 overflow-y-auto divide-y divide-dately-border dark:divide-slate-800">{notifications.length === 0 ? <div className="p-4 text-center text-xs text-dately-slate dark:text-slate-400">No notifications.</div> : notifications.slice(0, 5).map((notif) => <div
     key={notif.id}
     onClick={() => {
       markNotificationRead(notif.id);
       navigateTo("notifications");
       setIsNotifDropdownOpen(false);
     }}
-    className={`p-3 text-left hover:bg-slate-50 cursor-pointer transition-colors ${!notif.read ? "bg-dately-background/50 font-medium" : ""}`}
+    className={`p-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors ${!notif.read ? "bg-dately-background/50 dark:bg-slate-800/40 font-medium" : ""}`}
   ><div className="flex items-start space-x-2"><span
     className={`w-2 h-2 mt-1.5 rounded-full flex-shrink-0 ${notif.type === "danger" ? "bg-dately-danger" : notif.type === "warning" ? "bg-dately-warning" : notif.type === "success" ? "bg-dately-success" : "bg-blue-500"}`}
-  /><div className="min-w-0"><p className="text-xs font-bold text-dately-navy truncate">{notif.title}</p><p className="text-[10px] text-dately-slate line-clamp-2 mt-0.5">{notif.message}</p></div></div></div>)}</div><div className="border-t border-dately-border pt-2 px-4 text-center"><button
+  /><div className="min-w-0"><p className="text-xs font-bold text-dately-navy dark:text-slate-100 truncate">{notif.title}</p><p className="text-[10px] text-dately-slate dark:text-slate-400 line-clamp-2 mt-0.5">{notif.message}</p></div></div></div>)}</div><div className="border-t border-dately-border dark:border-slate-800 pt-2 px-4 text-center"><button
     onClick={() => {
       navigateTo("notifications");
       setIsNotifDropdownOpen(false);
     }}
-    className="w-full text-xs font-bold text-dately-primary hover:underline block py-1 text-center bg-transparent border-0"
+    className="w-full text-xs font-bold text-dately-primary dark:text-purple-400 hover:underline block py-1 text-center bg-transparent border-0"
   >
                       View all notifications
                     </button></div></div>}</div>{
@@ -172,25 +172,25 @@ export default function DashboardLayout({ children }) {
       setIsProfileDropdownOpen(!isProfileDropdownOpen);
       setIsNotifDropdownOpen(false);
     }}
-    className="flex items-center space-x-2 p-1.5 hover:bg-slate-100 rounded-lg"
-  ><div className="w-8 h-8 rounded-full bg-dately-primary text-white flex items-center justify-center font-bold text-xs">{getInitials(userName)}</div><ChevronDown className="w-4 h-4 text-dately-slate hidden sm:block" /></button>{isProfileDropdownOpen && <div className="absolute right-0 mt-2 w-48 bg-white border border-dately-border rounded-xl shadow-xl z-50 py-2"><div className="px-4 py-2 border-b border-dately-border text-left"><p className="text-sm font-bold text-dately-navy">{userName}</p><p className="text-xs text-dately-slate truncate">{userEmail}</p></div><button
+    className="flex items-center space-x-2 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+  ><div className="w-8 h-8 rounded-full bg-dately-primary text-white flex items-center justify-center font-bold text-xs">{getInitials(userName)}</div><ChevronDown className="w-4 h-4 text-dately-slate dark:text-slate-400 hidden sm:block" /></button>{isProfileDropdownOpen && <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-900 border border-dately-border dark:border-slate-800 rounded-xl shadow-xl z-50 py-2"><div className="px-4 py-2 border-b border-dately-border dark:border-slate-800 text-left"><p className="text-sm font-bold text-dately-navy dark:text-white">{userName}</p><p className="text-xs text-dately-slate dark:text-slate-400 truncate">{userEmail}</p></div><button
     onClick={() => {
       navigateTo("profile");
       setIsProfileDropdownOpen(false);
     }}
-    className="w-full flex items-center space-x-2 px-4 py-2.5 text-sm text-dately-navy hover:bg-slate-50 transition-colors text-left"
-  ><User className="w-4 h-4 text-dately-slate" /><span>My Profile</span></button><button
+    className="w-full flex items-center space-x-2 px-4 py-2.5 text-sm text-dately-navy dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left"
+  ><User className="w-4 h-4 text-dately-slate dark:text-slate-400" /><span>My Profile</span></button><button
     onClick={() => {
       navigateTo("settings");
       setIsProfileDropdownOpen(false);
     }}
-    className="w-full flex items-center space-x-2 px-4 py-2.5 text-sm text-dately-navy hover:bg-slate-50 transition-colors text-left"
-  ><Settings className="w-4 h-4 text-dately-slate" /><span>Settings</span></button><hr className="my-1 border-dately-border" /><button
+    className="w-full flex items-center space-x-2 px-4 py-2.5 text-sm text-dately-navy dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left"
+  ><Settings className="w-4 h-4 text-dately-slate dark:text-slate-400" /><span>Settings</span></button><hr className="my-1 border-dately-border dark:border-slate-800" /><button
     onClick={() => {
       setIsProfileDropdownOpen(false);
       handleLogout();
     }}
-    className="flex items-center space-x-2 px-4 py-2.5 text-sm text-dately-danger hover:bg-red-50 w-full text-left transition-colors"
+    className="flex items-center space-x-2 px-4 py-2.5 text-sm text-dately-danger hover:bg-red-50 dark:hover:bg-red-950/40 w-full text-left transition-colors"
   ><LogOut className="w-4 h-4" /><span>Sign Out</span></button></div>}</div></div></header>{
     /* Page Content */
   }<main className="flex-1 overflow-y-auto px-4 py-6 lg:p-8 max-w-7xl w-full mx-auto">{children}</main></div>{

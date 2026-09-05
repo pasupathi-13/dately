@@ -57,6 +57,47 @@ export function DatelyProvider({ children }) {
       return 'en';
     }
   });
+  const [theme, setTheme] = useState(() => {
+    try {
+      return localStorage.getItem('dately_theme') || 'light';
+    } catch {
+      return 'light';
+    }
+  });
+
+  const changeTheme = (newTheme) => {
+    setTheme(newTheme);
+    try {
+      localStorage.setItem('dately_theme', newTheme);
+    } catch {}
+  };
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const applyTheme = () => {
+      let isDark = false;
+      if (theme === 'dark') {
+        isDark = true;
+      } else if (theme === 'system') {
+        isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      }
+      if (isDark) {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
+    };
+
+    applyTheme();
+
+    if (theme === 'system' && typeof window !== 'undefined' && window.matchMedia) {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleChange = () => applyTheme();
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
+  }, [theme]);
+
   const [tempSignupData, setTempSignupData] = useState(() => {
     try {
       const saved = localStorage.getItem('dately_temp_signup');
@@ -875,6 +916,8 @@ export function DatelyProvider({ children }) {
         handleLogout,
         language,
         changeLanguage,
+        theme,
+        changeTheme,
         t,
         getAuthHeaders,
       }}
